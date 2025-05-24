@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Coin Prices Fetcher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      padding: 20px;
+      text-align: center;
+    }
+    #fetchButton {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    #fetchButton:hover {
+      background-color: #45a049;
+    }
+    #prices {
+      margin-top: 20px;
+      display: inline-block;
+      text-align: left;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      max-width: 600px;
+      width: 100%;
+    }
+    .coin {
+      margin-bottom: 10px;
+    }
+    .coin-name {
+      font-weight: bold;
+      text-transform: capitalize;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Cryptocurrency Prices</h1>
+  <button id="fetchButton">Fetch Coin Prices</button>
+
+  <div id="prices">
+    <p>Click the button to load the latest coin prices.</p>
+  </div>
+
+  <script>
+    document.getElementById('fetchButton').addEventListener('click', async () => {
+      const pricesDiv = document.getElementById('prices');
+      pricesDiv.innerHTML = '<p>Loading...</p>';
+
+      try {
+        const response = await fetch('/api/coin-prices');
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Log the fetched data to the browser console
+        console.log('Fetched Coin Prices:', data);
+
+        // Clear the loading message
+        pricesDiv.innerHTML = '';
+
+        // Iterate over each coin and display its price
+        for (const [coin, info] of Object.entries(data)) {
+          const coinDiv = document.createElement('div');
+          coinDiv.className = 'coin';
+
+          const coinName = document.createElement('span');
+          coinName.className = 'coin-name';
+          coinName.textContent = `${coin}: `;
+
+          const coinPrice = document.createElement('span');
+          coinPrice.textContent = `$${info.usd}`;
+
+          coinDiv.appendChild(coinName);
+          coinDiv.appendChild(coinPrice);
+
+          pricesDiv.appendChild(coinDiv);
+        }
+      } catch (error) {
+        console.error('Error fetching coin prices:', error);
+        pricesDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    });
+  </script>
+
+</body>
+</html>

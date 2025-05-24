@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Database Admin Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      background: #f0f2f5;
+    }
+    .sidebar {
+      width: 250px;
+      background: #fff;
+      border-right: 1px solid #ddd;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .sidebar h2 {
+      font-size: 18px;
+      margin: 0 0 10px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .userItem {
+      cursor: pointer;
+      padding: 8px;
+      margin-bottom: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+    .userItem:hover {
+      background: #e7e7e7;
+    }
+    .content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .detail-section {
+      background: #fff;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: #d9534f;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #c9302c;
+    }
+    pre {
+      background: #f8f9fa;
+      padding: 10px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Users</h2>
+    <div id="userList">
+      <!-- Dynamically populated list of user IDs -->
+    </div>
+  </div>
+  <div class="content">
+    <h2>User Details</h2>
+    <div id="userDetails">
+      <!-- Detailed user info will be populated here -->
+      <p>Select a user from the sidebar to view the details.</p>
+    </div>
+  </div>
+
+  <script>
+    // Our backend API base URL
+    const baseURL = 'http://localhost:3000';
+
+    // Fetch all users on load
+    async function loadUsers() {
+      try {
+        const response = await fetch(baseURL + '/api/users');
+        if (!response.ok) {
+          throw new Error('Network response was not ok.');
+        }
+        const users = await response.json();
+        displayUserList(users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        document.getElementById('userList').innerHTML = '<p>Error loading users.</p>';
+      }
+    }
+
+    // Display users in the sidebar list
+    function displayUserList(users) {
+      const userListDiv = document.getElementById('userList');
+      userListDiv.innerHTML = '';
+      if (!users.length) {
+        userListDiv.innerHTML = '<p>No users found.</p>';
+        return;
+      }
+
+      users.forEach(user => {
+        const item = document.createElement('div');
+        item.className = 'userItem';
+        // Display the user's id and (optionally) email
+        item.textContent = `ID: ${user.id} | ${user.email || ''}`;
+        item.addEventListener('click', () => loadUserDetails(user.id));
+        userListDiv.appendChild(item);
+      });
+    }
+
+    // Fetch detailed data for a single user
+    async function loadUserDetails(userId) {
+      try {
+        const response = await fetch(baseURL + '/api/user/' + userId);
+        if (!response.ok) {
+          throw new Error('Network response was not ok.');
+        }
+        const data = await response.json();
+        displayUserDetails(data);
+      } catch (error) {
+        console.error('Error fetching user details:', error);
+        document.getElementById('userDetails').innerHTML = '<p>Error loading user details.</p>';
+      }
+    }
+
+    // Render the detailed user info with a Delete User button
+    function displayUserDetails(data) {
+      const userDetailsDiv = document.getElementById('userDetails');
+      let html = `<div class="detail-section">
+        <h3>User Basic Info</h3>
+        <pre>${JSON.stringify(data.user, null, 2)}</pre>
+      </div>`;
+
+      // Display wallets if available
+      if (data.wallets) {
+        html += `<div class="detail-section">
+          <h3>Wallets</h3>
+          <pre>${JSON.stringify(data.wallets, null, 2)}</pre>
+        </div>`;
+      }
+      // Display external wallets
+      if (data.externalWallets) {
+        html += `<div class="detail-section">
+          <h3>External Wallets</h3>
+          <pre>${JSON.stringify(data.externalWallets, null, 2)}</pre>
+        </div>`;
+      }
+      // Display signals
+      if (data.signals) {
+        html += `<div class="detail-section">
+          <h3>Signals</h3>
+          <pre>${JSON.stringify(data.signals, null, 2)}</pre>
+        </div>`;
+      }
+      // Display stakes
+      if (data.stakes) {
+        html += `<div class="detail-section">
+          <h3>Stakes</h3>
+          <pre>${JSON.stringify(data.stakes, null, 2)}</pre>
+        </div>`;
+      }
+      // Display deposits
+      if (data.deposits) {
+        html += `<div class="detail-section">
+          <h3>Deposits</h3>
+          <pre>${JSON.stringify(data.deposits, null, 2)}</pre>
+        </div>`;
+      }
+      // Display withdrawals
+      if (data.withdrawals) {
+        html += `<div class="detail-section">
+          <h3>Withdrawals</h3>
+          <pre>${JSON.stringify(data.withdrawals, null, 2)}</pre>
+        </div>`;
+      }
+      // Display notifications
+      if (data.notifications) {
+        html += `<div class="detail-section">
+          <h3>Notifications</h3>
+          <pre>${JSON.stringify(data.notifications, null, 2)}</pre>
+        </div>`;
+      }
+      // Add a Delete User button (make sure your backend supports this endpoint)
+      html += `<button onclick="deleteUser(${data.user.id})">Delete User</button>`;
+      userDetailsDiv.innerHTML = html;
+    }
+
+    // Delete a user
+    async function deleteUser(userId) {
+      if (!confirm('Are you sure you want to delete user ID ' + userId + '?')) {
+        return;
+      }
+      try {
+        // This DELETE endpoint must be implemented in your backend.
+        const response = await fetch(baseURL + '/api/user/' + userId, {
+          method: 'DELETE'
+        });
+        if (!response.ok) {
+          throw new Error('Failed to delete user.');
+        }
+        alert('User deleted successfully.');
+        // Refresh the user list and clear details.
+        loadUsers();
+        document.getElementById('userDetails').innerHTML = '<p>Select a user from the sidebar to view details.</p>';
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Error deleting user.');
+      }
+    }
+
+    // Load users when the page is ready
+    document.addEventListener('DOMContentLoaded', loadUsers);
+  </script>
+</body>
+</html>

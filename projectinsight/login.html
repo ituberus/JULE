@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Page</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    :root {
+      --primary-bg: #121212;
+      --secondary-bg: #1E1E1E;
+      --hover-bg: #292929;
+      --border-color: #444;
+      --text-color: #ffffff;
+      --text-secondary: #A0A0A0;
+      --shadow: rgba(0, 0, 0, 0.3);
+      --accent-color: #00bcd4;
+    }
+
+    body {
+      background-color: var(--primary-bg);
+      color: var(--text-color);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .header {
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--secondary-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px var(--shadow);
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .back-link {
+      color: var(--text-color);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .back-link:hover {
+      color: var(--accent-color);
+    }
+
+    .login-container {
+      max-width: 400px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background-color: var(--secondary-bg);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .login-title {
+      text-align: center;
+      margin-bottom: 3rem;
+      font-size: 1.75rem;
+      font-weight: 600;
+    }
+
+    .input-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background-color: var(--primary-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-color);
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .password-container {
+      position: relative;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .login-links {
+      margin: 1.5rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .login-link {
+      color: var(--accent-color);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: opacity 0.3s;
+    }
+
+    .login-link:hover {
+      opacity: 0.8;
+    }
+
+    .login-button {
+      width: 100%;
+      padding: 0.875rem;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+
+    .login-button:hover {
+      opacity: 0.9;
+    }
+
+    /* Optional: simple error message styling */
+    .error-message {
+      color: #ff6b6b;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+
+      .login-title {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <img src="/api/placeholder/48/48" alt="Logo" />
+    </div>
+    <a href="/" class="back-link">Back to homepage</a>
+  </header>
+
+  <main class="login-container">
+    <h1 class="login-title">Log in to your account</h1>
+    
+    <!-- Placeholder for error messages -->
+    <div id="error-message" class="error-message" style="display: none;"></div>
+
+    <form id="login-form">
+      <div class="input-group">
+        <input type="email" id="email" class="input-field" placeholder="Email address" required />
+      </div>
+      
+      <div class="input-group">
+        <div class="password-container">
+          <input type="password" id="password" class="input-field" placeholder="Password" required />
+          <button type="button" class="password-toggle" onclick="togglePassword(this)">
+            <i class="material-icons">visibility</i>
+          </button>
+        </div>
+      </div>
+
+      <div class="login-links">
+        <a href="/signup" class="login-link">Don't have an account?</a>
+        <a href="/forgot-password" class="login-link">Forgot your password?</a>
+      </div>
+
+      <button type="submit" class="login-button">Log in</button>
+    </form>
+  </main>
+
+  <!-- Link to the login.js file -->
+  <script src="login.js"></script>
+  <script>
+    function togglePassword(button) {
+      const input = button.previousElementSibling;
+      const icon = button.querySelector('i');
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = 'visibility_off';
+      } else {
+        input.type = 'password';
+        icon.textContent = 'visibility';
+      }
+    }
+  </script>
+</body>
+</html>

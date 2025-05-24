@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Responsive Template</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <style>
+    /* Basic Reset & Typography */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Color Variables */
+    :root {
+      --primary-bg: #121212;
+      --secondary-bg: #1E1E1E;
+      --hover-bg: #292929;
+      --active-bg: #333333;
+      --border-color: #444;
+      --text-color: #ffffff;
+      --text-secondary: #A0A0A0;
+      --shadow: rgba(0, 0, 0, 0.3);
+      --transition-speed: 0.3s;
+    }
+
+    body {
+      background-color: var(--primary-bg);
+      color: var(--text-color);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* HEADER STYLES */
+    .header {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 0 1.5rem;
+      background-color: var(--primary-bg);
+      border-bottom: 1px solid var(--border-color);
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      height: 64px;
+      box-shadow: 0 2px 4px var(--shadow);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 1.75rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      position: absolute;
+      left: 1rem;
+      transition: color var(--transition-speed);
+    }
+
+    .menu-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .notification-icon,
+    .profile-button {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: background var(--transition-speed);
+    }
+
+    .notification-icon:hover,
+    .profile-button:hover {
+      background-color: var(--hover-bg);
+    }
+
+    .profile-button {
+      background-color: var(--secondary-bg);
+      padding: 0.5rem 1rem;
+      font-weight: 500;
+      min-width: 40px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* SIDEBAR STYLES */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 260px;
+      background-color: var(--primary-bg);
+      padding-top: 64px;
+      transition: transform var(--transition-speed) ease;
+      border-right: 1px solid var(--border-color);
+      z-index: 999;
+      overflow-y: auto;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background-color: var(--hover-bg);
+      border-radius: 3px;
+    }
+
+    .mobile-header {
+      display: none;
+      padding: 1rem;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .mobile-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .mobile-close {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      padding: 0.5rem;
+      font-size: 1.75rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      color: var(--text-color);
+      text-decoration: none;
+      gap: 1rem;
+      font-size: 0.9375rem;
+      transition: background var(--transition-speed);
+    }
+
+    .nav-item:hover {
+      background-color: var(--hover-bg);
+    }
+
+    .nav-item.active {
+      background-color: var(--active-bg);
+      border-left: 4px solid #00bcd4;
+      padding-left: 1.25rem;
+    }
+
+    .nav-item i {
+      font-size: 1.25rem;
+      width: 24px;
+      text-align: center;
+    }
+
+    /* CONTENT AREA */
+    .content {
+      margin-left: 260px;
+      padding: 84px 2rem 2rem;
+      min-height: 100vh;
+      transition: margin var(--transition-speed);
+    }
+
+    /* NOTIFICATION POPUP */
+    .notification-popup {
+      position: absolute;
+      top: 60px;
+      right: 80px;
+      background-color: var(--secondary-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px var(--shadow);
+      padding: 1rem;
+      min-width: 300px;
+      max-width: 400px;
+      display: none;
+      border: 1px solid var(--border-color);
+      z-index: 1001;
+    }
+
+    .notification-popup.active {
+      display: block;
+      animation: fadeIn var(--transition-speed);
+    }
+
+    .notification-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-secondary);
+    }
+
+    .notification-empty i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* PROFILE DROPDOWN */
+    .profile-dropdown {
+      position: absolute;
+      top: 60px;
+      right: 1rem;
+      background-color: var(--secondary-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px var(--shadow);
+      display: none;
+      min-width: 220px;
+      border: 1px solid var(--border-color);
+      padding: 0.5rem;
+      z-index: 1001;
+    }
+
+    .profile-dropdown.active {
+      display: block;
+      animation: fadeIn var(--transition-speed);
+    }
+
+    .dropdown-item {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--text-color);
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 0.9375rem;
+      transition: background var(--transition-speed);
+    }
+
+    .dropdown-item:hover {
+      background-color: var(--hover-bg);
+    }
+
+    .dropdown-item i {
+      font-size: 1.25rem;
+      width: 24px;
+      text-align: center;
+    }
+
+    /* ANIMATION */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* RESPONSIVE ADJUSTMENTS */
+    @media (max-width: 768px) {
+      .menu-toggle {
+        display: block;
+      }
+
+      .sidebar {
+        transform: translateX(-100%);
+        z-index: 1001;
+        padding-top: 0;
+      }
+
+      .sidebar.active {
+        transform: translateX(0);
+      }
+
+      .mobile-header {
+        display: flex;
+      }
+
+      .content {
+        margin-left: 0;
+        padding: 74px 1rem 1rem;
+      }
+
+      .profile-dropdown {
+        position: fixed;
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+        width: calc(100% - 40px);
+      }
+
+      .notification-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100% - 40px);
+        right: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <button class="menu-toggle">
+      <i class="material-icons">menu</i>
+    </button>
+    <div class="header-actions">
+      <button class="notification-icon" id="notificationBtn">
+        <i class="material-icons">notifications</i>
+      </button>
+      <button class="profile-button" id="profileBtn">
+        <i class="material-icons">person</i>
+        <span>Profile</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="sidebar">
+    <div class="mobile-header">
+      <h2>Menu</h2>
+      <button class="mobile-close" id="mobileClose">
+        <i class="material-icons">close</i>
+      </button>
+    </div>
+    <a href="/dashboard" class="nav-item">
+      <i class="material-icons">dashboard</i>
+      <span>Dashboard</span>
+    </a>
+    <a href="/deposit" class="nav-item">
+      <i class="material-icons">add_circle_outline</i>
+      <span>Deposit</span>
+    </a>
+    <a href="/withdraw" class="nav-item">
+      <i class="material-icons">remove_circle_outline</i>
+      <span>Withdraw</span>
+    </a>
+    <a href="/assets" class="nav-item">
+      <i class="material-icons">account_balance_wallet</i>
+      <span>Assets</span>
+    </a>
+    <a href="/markets" class="nav-item">
+      <i class="material-icons">pie_chart</i>
+      <span>Markets</span>
+    </a>
+    <a href="/trade" class="nav-item">
+      <i class="material-icons">trending_up</i>
+      <span>Trade</span>
+    </a>
+    <a href="/subscribe" class="nav-item">
+      <i class="material-icons">card_membership</i>
+      <span>Subscribe</span>
+    </a>
+    <a href="/signals" class="nav-item">
+      <i class="material-icons">wifi</i>
+      <span>Signals</span>
+    </a>
+    <a href="/stake" class="nav-item">
+      <i class="material-icons">local_offer</i>
+      <span>Stake</span>
+    </a>
+    <a href="/referrals" class="nav-item">
+      <i class="material-icons">group</i>
+      <span>Referrals</span>
+    </a>
+    <a href="/connect" class="nav-item">
+      <i class="material-icons">link</i>
+      <span>Connect Wallet</span>
+    </a>
+    <a href="/experts" class="nav-item">
+      <i class="material-icons">content_copy</i>
+      <span>Copy Experts</span>
+    </a>
+  </nav>
+
+  <div class="notification-popup" id="notificationPopup">
+    <div class="notification-empty">
+      <i class="material-icons">notifications_none</i>
+      <p>No notifications yet</p>
+      <p style="font-size: 0.875rem; margin-top: 0.5rem;">You'll see your notifications here</p>
+    </div>
+  </div>
+
+  <div class="profile-dropdown" id="profileDropdown">
+    <a href="#" class="dropdown-item">
+      <i class="material-icons">add_circle_outline</i>
+      <span>Add funds</span>
+    </a>
+    <a href="#" class="dropdown-item">
+      <i class="material-icons">remove_circle_outline</i>
+      <span>Withdraw funds</span>
+    </a>
+    <a href="#" class="dropdown-item">
+      <i class="material-icons">settings</i>
+      <span>Settings</span>
+    </a>
+    <a href="#" class="dropdown-item">
+      <i class="material-icons">notifications</i>
+      <span>Notifications</span>
+    </a>
+    <a href="#" class="dropdown-item">
+      <i class="material-icons">logout</i>
+      <span>Logout</span>
+    </a>
+  </div>
+<div id="page-content"></div>
+  <script>
+    // Get current page path to highlight the active nav item
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      if (item.getAttribute('href') === currentPath) {
+        item.classList.add('active');
+      }
+    });
+
+    // Mobile menu toggle
+    const menuToggle = document.querySelector('.menu-toggle');
+    const mobileClose = document.getElementById('mobileClose');
+    const sidebar = document.querySelector('.sidebar');
+
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.add('active');
+    });
+
+    mobileClose.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+    });
+
+    // Notification popup
+    const notificationBtn = document.getElementById('notificationBtn');
+    const notificationPopup = document.getElementById('notificationPopup');
+
+    notificationBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      notificationPopup.classList.toggle('active');
+      // Close profile dropdown if open
+      profileDropdown.classList.remove('active');
+    });
+
+    // Profile dropdown
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    profileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileDropdown.classList.toggle('active');
+      // Close notification popup if open
+      notificationPopup.classList.remove('active');
+    });
+
+    // Close dropdowns and mobile menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!notificationPopup.contains(e.target) && !notificationBtn.contains(e.target)) {
+        notificationPopup.classList.remove('active');
+      }
+      if (!profileDropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+        profileDropdown.classList.remove('active');
+      }
+      if (window.innerWidth <= 768 &&
+          !sidebar.contains(e.target) &&
+          !menuToggle.contains(e.target)) {
+        sidebar.classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>

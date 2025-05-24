@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:hover {background-color: #f5f5f5;}
+    .button {
+      padding: 5px 10px;
+      margin: 2px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+    }
+    .button.edit {
+      background-color: #2196F3;
+    }
+    .button.delete {
+      background-color: #f44336;
+    }
+    .button.close {
+      background-color: #555;
+    }
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 1; 
+      padding-top: 60px; 
+      left: 0;
+      top: 0;
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; 
+      background-color: rgba(0,0,0,0.4); 
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-height: 80%;
+      overflow-y: auto;
+    }
+    .close-modal {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-modal:hover,
+    .close-modal:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .form-group input, 
+    .form-group select, 
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .form-group button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .form-group button:hover {
+      background-color: #45a049;
+    }
+    .section-title {
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Admin Panel</h1>
+
+  <!-- Users List -->
+  <h2>All Users</h2>
+  <table id="users-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Email</th>
+        <th>Country</th>
+        <th>Account Currency</th>
+        <th>Verification Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Users will be populated here -->
+    </tbody>
+  </table>
+
+  <!-- User Details -->
+  <div id="user-details" style="display: none;">
+    <h2>User Details</h2>
+    <button class="button close" id="close-user-details">Close</button>
+    <div id="user-info">
+      <!-- User info will be displayed here -->
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" id="close-edit-modal">&times;</span>
+      <h2>Edit Entry</h2>
+      <form id="edit-form">
+        <!-- Dynamic form fields will be inserted here -->
+        <div id="edit-form-fields"></div>
+        <button type="submit">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Include the test.js script -->
+  <script src="test.js"></script>
+</body>
+</html>

@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tradeboy Ultra Pro - Advanced Live Widget</title>
+  <!-- D3 for charting -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /***************************************************
+     * RESET & RESPONSIVE BASE
+     ***************************************************/
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: "Roboto", sans-serif;
+      background: #121619;
+      color: #e0e6ed;
+      overflow: hidden;
+    }
+    a { text-decoration: none; color: #08a88a; }
+    
+    /* GRID LAYOUT: top bar, side toolbar, chart area, bottom bar */
+    .layout {
+      display: grid;
+      grid-template-rows: 60px 1fr 40px;
+      grid-template-columns: 70px 1fr;
+      width: 100%;
+      height: 100%;
+    }
+    
+    /***************************************************
+     * TOP BAR (Header)
+     ***************************************************/
+    .top-bar {
+      grid-column: 1 / span 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 12px;
+      background: linear-gradient(90deg, #1d2127, #121619);
+      border-bottom: 1px solid #2b3138;
+    }
+    .top-bar .left-section,
+    .top-bar .right-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .top-bar .brand {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #08a88a;
+    }
+    .top-bar input.symbol-input {
+      background: #1d2127;
+      border: 1px solid #2b3138;
+      color: #e0e6ed;
+      border-radius: 4px;
+      padding: 4px 8px;
+      width: 100px;
+    }
+    .top-bar button {
+      background: #1d2127;
+      border: 1px solid #2b3138;
+      color: #e0e6ed;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
+    }
+    .top-bar button:hover {
+      background: #272b30;
+    }
+    .top-bar button.active {
+      background: #08a88a;
+      border-color: #08a88a;
+      color: #121619;
+    }
+    .top-bar .price-info {
+      text-align: right;
+      font-size: 0.95rem;
+    }
+    
+    /***************************************************
+     * SIDE TOOLBAR
+     ***************************************************/
+    .left-toolbar {
+      grid-row: 1 / span 2;
+      background: linear-gradient(180deg, #1d2127, #121619);
+      border-right: 1px solid #2b3138;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 12px;
+      gap: 12px;
+    }
+    .left-toolbar .tool-btn {
+      width: 45px;
+      height: 45px;
+      background: #1d2127;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out, border 0.2s ease-in-out;
+      position: relative;
+    }
+    .left-toolbar .tool-btn:hover {
+      background: #272b30;
+    }
+    .left-toolbar .tool-btn.active {
+      border: 1px solid #08a88a;
+    }
+    .left-toolbar svg {
+      width: 22px;
+      height: 22px;
+      fill: #e0e6ed;
+    }
+    .tool-tooltip {
+      position: absolute;
+      left: 110%;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(29,33,39,0.95);
+      color: #e0e6ed;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .tool-btn:hover .tool-tooltip {
+      opacity: 1;
+    }
+    
+    /***************************************************
+     * CHART AREA
+     ***************************************************/
+    .chart-area {
+      grid-column: 2;
+      grid-row: 2;
+      position: relative;
+      background: #121619;
+      overflow: hidden;
+    }
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+    }
+    .watermark {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      font-size: 70px;
+      font-weight: 700;
+      color: rgba(8,168,138,0.03);
+      pointer-events: none;
+      user-select: none;
+      transform: rotate(-15deg);
+      letter-spacing: 2px;
+    }
+    .tooltip, .axis-label-x, .axis-label-y {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(29,33,39,0.97);
+      color: #e0e6ed;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      border-radius: 4px;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+    .axis-label-x, .axis-label-y {
+      padding: 4px 8px;
+      font-size: 0.8rem;
+    }
+    .crosshair-line {
+      stroke: #4b545e;
+      stroke-width: 1;
+      stroke-dasharray: 4 2;
+      pointer-events: none;
+    }
+    
+    /***************************************************
+     * CHART ELEMENT STYLES
+     ***************************************************/
+    .candlestick-up {
+      fill: #08a88a;
+      stroke: #08a88a;
+    }
+    .candlestick-down {
+      fill: #ff4b4b;
+      stroke: #ff4b4b;
+    }
+    .volume-up {
+      fill: #08a88a;
+    }
+    .volume-down {
+      fill: #ff4b4b;
+    }
+    .axis path, .axis line { stroke: #2b3138; }
+    .axis text { fill: #9aa0a6; font-size: 0.8rem; }
+    
+    /* Drawing objects */
+    .draw-line, .draw-rect, .draw-ellipse, .draw-arrow, 
+    .draw-text, .draw-measure, .draw-hline, .draw-vline {
+      cursor: move;
+    }
+    .draw-line, .draw-hline, .draw-vline, .draw-arrow, .draw-measure {
+      stroke: #f0c674;
+      stroke-width: 2;
+      fill: none;
+    }
+    .draw-rect {
+      stroke: #79c0ff;
+      fill: rgba(121,192,255,0.15);
+      stroke-width: 2;
+    }
+    .draw-ellipse {
+      stroke: #d29922;
+      fill: rgba(210,153,34,0.15);
+      stroke-width: 2;
+    }
+    .draw-text {
+      fill: #faa583;
+      font-size: 14px;
+    }
+    .draw-measure-label {
+      fill: #faa583;
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .draw-selected {
+      stroke-dasharray: 5 3;
+      filter: drop-shadow(0 0 6px #fff);
+    }
+    
+    /***************************************************
+     * BOTTOM BAR (Footer)
+     ***************************************************/
+    .bottom-bar {
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      background: linear-gradient(90deg, #1d2127, #121619);
+      border-top: 1px solid #2b3138;
+      font-size: 0.85rem;
+      color: #9aa0a6;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- TOP BAR -->
+    <header class="top-bar">
+      <div class="left-section">
+        <div class="brand">Tradeboy Ultra Pro</div>
+        <input type="text" class="symbol-input" id="symbol-input" placeholder="Symbol" value="BTC-USDT">
+        <button id="symbol-btn">Load</button>
+        <div class="symbol-display" id="symbol-display">BTC / USDT</div>
+      </div>
+      <div class="right-section">
+        <div class="top-buttons intervals">
+          <button data-interval="1D" class="active">1D</button>
+          <button data-interval="12h">12H</button>
+          <button data-interval="4h">4H</button>
+          <button data-interval="1h">1H</button>
+          <button data-interval="30m">30m</button>
+          <button data-interval="15m">15m</button>
+          <button data-interval="5m">5m</button>
+          <button data-interval="1m">1m</button>
+        </div>
+        <div class="top-buttons chart-types" style="margin-left:12px;">
+          <button data-type="candlestick" class="active">Candles</button>
+          <button data-type="line">Line</button>
+          <button data-type="area">Area</button>
+          <button data-type="bars">Bars</button>
+        </div>
+        <div class="top-buttons indicator-panel" style="margin-left:12px;">
+          <button id="ma-toggle">MA</button>
+        </div>
+        <div class="price-info">
+          <div class="current-price" id="current-price">--</div>
+          <div class="price-change" id="price-change">--</div>
+        </div>
+      </div>
+    </header>
+    
+    <!-- SIDE TOOLBAR -->
+    <aside class="left-toolbar">
+      <!-- Cursor / Select -->
+      <div class="tool-btn active" data-tool="cursor">
+        <svg viewBox="0 0 512 512">
+          <path d="M256 32C132.3 32 32 132.3 32 256s100.3 224 224 224 224-100.3 224-224S379.7 32 256 32z"/>
+        </svg>
+        <div class="tool-tooltip">Cursor / Select</div>
+      </div>
+      <!-- Trend Line -->
+      <div class="tool-btn" data-tool="line">
+        <svg viewBox="0 0 576 512">
+          <path d="M571.3 236.3l-22.6-22.6c-9.4-9.4-24.6-9.4-33.9 0L288 440.6 61.3 213.9c-9.4-9.4-24.6-9.4-33.9 0L4.7 236.3c-9.4 9.4-9.4 24.6 0 33.9l256 256c9.4 9.4 24.6 9.4 33.9 0l272-272c9.4-9.3 9.4-24.5.7-33.9z"/>
+        </svg>
+        <div class="tool-tooltip">Trend Line</div>
+      </div>
+      <!-- Horizontal Line -->
+      <div class="tool-btn" data-tool="hline">
+        <svg viewBox="0 0 512 512">
+          <path d="M64 256c0 17.7 14.3 32 32 32H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H96c-17.7 0-32 14.3-32 32z"/>
+        </svg>
+        <div class="tool-tooltip">Horizontal Line</div>
+      </div>
+      <!-- Vertical Line -->
+      <div class="tool-btn" data-tool="vline">
+        <svg viewBox="0 0 256 512">
+          <path d="M224 256c0 17.7-14.3 32-32 32H64c-17.7 0-32-14.3-32-32s14.3-32 32-32h128c17.7 0 32 14.3 32 32z"/>
+        </svg>
+        <div class="tool-tooltip">Vertical Line</div>
+      </div>
+      <!-- Rectangle -->
+      <div class="tool-btn" data-tool="rect">
+        <svg viewBox="0 0 512 512">
+          <path d="M32 64C14.3 64 0 78.3 0 96V416c0 17.7 14.3 32 32 32H480c17.7 0 32-14.3 32-32V96c0-17.7-14.3-32-32-32H32z"/>
+        </svg>
+        <div class="tool-tooltip">Rectangle</div>
+      </div>
+      <!-- Ellipse -->
+      <div class="tool-btn" data-tool="ellipse">
+        <svg viewBox="0 0 512 512">
+          <path d="M256 64C150 64 64 150 64 256s86 192 192 192 192-86 192-192S362 64 256 64z"/>
+        </svg>
+        <div class="tool-tooltip">Ellipse</div>
+      </div>
+      <!-- Arrow -->
+      <div class="tool-btn" data-tool="arrow">
+        <svg viewBox="0 0 448 512">
+          <path d="M448 256c0 17.7-14.3 32-32 32H192v96c0 12.9-7.8 24.5-19.7 29.4-11.9 4.9-25.5 2.2-34.5-6.9l-160-160c-12.5-12.5-12.5-32.8 0-45.3l160-160c9-9 22.6-11.8 34.5-6.9C184.2 39.5 192 51.1 192 64v96H416c17.7 0 32 14.3 32 32z"/>
+        </svg>
+        <div class="tool-tooltip">Arrow</div>
+      </div>
+      <!-- Text -->
+      <div class="tool-btn" data-tool="text">
+        <svg viewBox="0 0 448 512">
+          <path d="M48 64C21.5 64 0 85.5 0 112s21.5 48 48 48h160v288c0 17.7 14.3 32 32 32s32-14.3 32-32V160H400c26.5 0 48-21.5 48-48s-21.5-48-48-48H48z"/>
+        </svg>
+        <div class="tool-tooltip">Text</div>
+      </div>
+      <!-- Measure -->
+      <div class="tool-btn" data-tool="measure">
+        <svg viewBox="0 0 512 512">
+          <path d="M464 96c-26.5 0-48 21.5-48 48 0 7.1 1.6 13.8 4.4 20l-84 84c-8.7-4.1-18.3-6.4-28.4-6.4-35.3 0-64 28.7-64 64 0 10.1 2.3 19.7 6.4 28.4l-84 84c-6.2-2.8-12.9-4.4-20-4.4-26.5 0-48 21.5-48 48s21.5 48 48 48 48-21.5 48-48c0-7.1-1.6-13.8-4.4-20l84-84c8.7 4.1 18.3 6.4 28.4 6.4 35.3 0 64-28.7 64-64 0-10.1-2.3-19.7-6.4-28.4l84-84c6.2 2.8 12.9 4.4 20 4.4 26.5 0 48-21.5 48-48s-21.5-48-48-48z"/>
+        </svg>
+        <div class="tool-tooltip">Measure</div>
+      </div>
+      <!-- Eraser -->
+      <div class="tool-btn" data-tool="eraser">
+        <svg viewBox="0 0 512 512">
+          <path d="M320 416H294.6L374.6 336h45.3c6.4 0 12.5-2.6 17-7l49.9-49.9c21.4-21.4 21.4-56.1 0-77.5L301.4 20.7c-21.4-21.4-56.1-21.4-77.5 0L53.5 191.1c-21.4 21.4-21.4 56.1 0 77.5l110.9 110.9c4.5 4.5 10.6 7 17 7H192v16c0 17.7 14.3 32 32 32H288c17.7 0 32-14.3 32-32V416z"/>
+        </svg>
+        <div class="tool-tooltip">Clear Drawings</div>
+      </div>
+    </aside>
+    
+    <!-- CHART AREA -->
+    <main class="chart-area" id="chart-area">
+      <div class="watermark">TRADEBOY</div>
+      <div class="tooltip" id="tooltip"></div>
+      <div class="axis-label-x" id="axis-label-x"></div>
+      <div class="axis-label-y" id="axis-label-y"></div>
+      <svg class="chart-svg" id="chart-svg"></svg>
+    </main>
+    
+    <!-- BOTTOM BAR -->
+    <footer class="bottom-bar">
+      <span>Powered by <a href="https://example.com" target="_blank">Tradeboy Ultra Pro</a></span>
+    </footer>
+  </div>
+  
+  <script>
+    /***************************************************
+     * Tradeboy Ultra Pro - Advanced Live Widget
+     * Responsive modern design with live updates every 5 seconds
+     ***************************************************/
+    
+    /* ------------------------------
+       GLOBALS & DEFAULTS
+    ------------------------------ */
+    let chartData = [];
+    let currentInterval = '1D';
+    let symbol = 'BTC-USDT';
+    let chartType = 'candlestick'; // Options: candlestick, line, area, bars
+    let showMA = false; // Moving Average toggle
+    let fetchInterval = 5000;  // 5000ms = 5 seconds
+    let fetchTimeout;
+    let isFetching = false;
+    
+    // DOM Elements
+    const chartSvg = d3.select('#chart-svg');
+    const svgNode = chartSvg.node();
+    const tooltip = document.getElementById('tooltip');
+    const labelX = document.getElementById('axis-label-x');
+    const labelY = document.getElementById('axis-label-y');
+    const priceDisplay = document.getElementById('current-price');
+    const priceChangeDisplay = document.getElementById('price-change');
+    const symbolDisplay = document.getElementById('symbol-display');
+    const symbolInput = document.getElementById('symbol-input');
+    const symbolBtn = document.getElementById('symbol-btn');
+    
+    let width = 0, height = 0;
+    let innerWidth = 0, innerHeight = 0;
+    let margin = { top: 10, right: 70, bottom: 20, left: 10 };
+    let priceHeight = 0, volumeHeight = 0;
+    let xScale, yScale, yScaleVolume;
+    let mainG, volumeG, candleG, lineG;
+    let crosshairX, crosshairY;
+    let xAxisG, yAxisG, yAxisVolumeG;
+    let zoomBehavior;
+    
+    // Drawing variables
+    let currentTool = 'cursor';
+    let isDrawing = false;
+    let tempShape = null;
+    let shapes = [];
+    let selectedShape = null;
+    let measurePoints = [];
+    
+    /* ------------------------------
+       1) DATA FETCHING FUNCTIONS
+    ------------------------------ */
+    async function fetchCandlesKuCoin(interval, sym) {
+      const map = {
+        '1D': '1day',
+        '12h': '12hour',
+        '4h': '4hour',
+        '1h': '1hour',
+        '30m': '30min',
+        '15m': '15min',
+        '5m': '5min',
+        '1m': '1min'
+      };
+      const kuInterval = map[interval] || '1day';
+      const url = `https://api.kucoin.com/api/v1/market/candles?type=${kuInterval}&symbol=${sym}&limit=200`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch data. Status ' + res.status);
+      const json = await res.json();
+      if (json.code !== '200000') {
+        throw new Error('API error: ' + JSON.stringify(json));
+      }
+      const data = json.data.reverse();
+      return data.map(d => ({
+        time: parseInt(d[0]) * 1000,
+        open: +d[1],
+        close: +d[2],
+        high: +d[3],
+        low: +d[4],
+        volume: +d[5]
+      }));
+    }
+    
+    /* ------------------------------
+       2) SETUP & RENDER CHART
+    ------------------------------ */
+    function setupChart() {
+      width = svgNode.clientWidth;
+      height = svgNode.clientHeight;
+      innerWidth = width - margin.left - margin.right;
+      innerHeight = height - margin.top - margin.bottom;
+      priceHeight = innerHeight * 0.7;
+      volumeHeight = innerHeight * 0.3;
+      chartSvg.selectAll('*').remove();
+      
+      mainG = chartSvg.append('g').attr('transform', `translate(${margin.left}, ${margin.top})`);
+      
+      // Scales
+      xScale = d3.scaleBand()
+        .domain(chartData.map(d => d.time))
+        .range([0, innerWidth])
+        .paddingInner(0.2)
+        .paddingOuter(0.1);
+      const [minPrice, maxPrice] = d3.extent([...chartData.map(d => d.low), ...chartData.map(d => d.high)]);
+      yScale = d3.scaleLinear()
+        .domain([minPrice || 0, maxPrice || 100])
+        .range([priceHeight, 0])
+        .nice();
+      const [minVol, maxVol] = d3.extent(chartData.map(d => d.volume));
+      yScaleVolume = d3.scaleLinear()
+        .domain([0, maxVol || 1])
+        .range([volumeHeight, 0])
+        .nice();
+      
+      // Axes
+      xAxisG = mainG.append('g')
+        .attr('class', 'axis x-axis')
+        .attr('transform', `translate(0, ${priceHeight})`)
+        .call(d3.axisBottom(xScale).tickFormat(t => formatDate(t)));
+      yAxisG = mainG.append('g')
+        .attr('class', 'axis y-axis-price')
+        .attr('transform', `translate(${innerWidth}, 0)`)
+        .call(d3.axisRight(yScale).ticks(8));
+      yAxisVolumeG = mainG.append('g')
+        .attr('class', 'axis y-axis-volume')
+        .attr('transform', `translate(${innerWidth}, ${priceHeight})`)
+        .call(d3.axisRight(yScaleVolume).ticks(2));
+      
+      // Volume bars
+      volumeG = mainG.append('g')
+        .attr('transform', `translate(0, ${priceHeight})`);
+      volumeG.selectAll('.volume-bar')
+        .data(chartData)
+        .enter()
+        .append('rect')
+        .attr('class', d => d.close >= d.open ? 'volume-up' : 'volume-down')
+        .attr('x', d => xScale(d.time))
+        .attr('y', d => yScaleVolume(d.volume))
+        .attr('width', xScale.bandwidth())
+        .attr('height', d => volumeHeight - yScaleVolume(d.volume));
+      
+      // Price layers: candles/bars or line/area
+      candleG = mainG.append('g').attr('class', 'candle-layer');
+      lineG = mainG.append('g').attr('class', 'line-layer');
+      if (chartType === 'candlestick' || chartType === 'bars') {
+        candleG.selectAll('.candle-body')
+          .data(chartData)
+          .enter()
+          .append('rect')
+          .attr('class', d => d.close >= d.open ? 'candlestick-up' : 'candlestick-down')
+          .attr('x', d => xScale(d.time))
+          .attr('y', d => yScale(Math.max(d.close, d.open)))
+          .attr('width', xScale.bandwidth() * (chartType === 'bars' ? 0.4 : 1))
+          .attr('height', d => Math.abs(yScale(d.open) - yScale(d.close)));
+        candleG.selectAll('.candle-wick')
+          .data(chartData)
+          .enter()
+          .append('line')
+          .attr('class', d => d.close >= d.open ? 'candlestick-up' : 'candlestick-down')
+          .attr('x1', d => xScale(d.time) + xScale.bandwidth()/2)
+          .attr('x2', d => xScale(d.time) + xScale.bandwidth()/2)
+          .attr('y1', d => yScale(d.high))
+          .attr('y2', d => yScale(d.low));
+      } else {
+        const xScaleContinuous = d3.scaleLinear()
+          .domain(d3.extent(chartData, d => d.time))
+          .range([0, innerWidth]);
+        const lineGen = d3.line()
+          .x(d => xScaleContinuous(d.time))
+          .y(d => yScale(d.close))
+          .curve(d3.curveMonotoneX);
+        lineG.append('path')
+          .datum(chartData)
+          .attr('fill', chartType === 'area' ? 'rgba(8,168,138,0.3)' : 'none')
+          .attr('stroke', '#08a88a')
+          .attr('stroke-width', 2)
+          .attr('d', chartType === 'area'
+            ? d3.area()
+                .x(d => xScaleContinuous(d.time))
+                .y0(yScale(d3.min(chartData, d => d.low)))
+                .y1(d => yScale(d.close))
+                .curve(d3.curveMonotoneX)
+            : lineGen);
+      }
+      
+      if (showMA) {
+        drawMovingAverage();
+      }
+      
+      // Crosshair lines for mouse position feedback
+      crosshairX = mainG.append('line')
+        .attr('class', 'crosshair-line')
+        .style('display', 'none')
+        .attr('y1', 0)
+        .attr('y2', priceHeight);
+      crosshairY = mainG.append('line')
+        .attr('class', 'crosshair-line')
+        .style('display', 'none')
+        .attr('x1', 0)
+        .attr('x2', innerWidth);
+      
+      // Bind mouse events for tooltip & crosshair functionality
+      chartSvg
+        .on('mousemove', onMouseMove)
+        .on('mouseleave', hideCrosshair);
+      
+      // Zoom behavior for interactivity
+      zoomBehavior = d3.zoom()
+        .scaleExtent([1, 10])
+        .translateExtent([[0,0],[innerWidth, priceHeight]])
+        .extent([[0,0],[innerWidth, priceHeight]])
+        .on('zoom', onZoom);
+      chartSvg.call(zoomBehavior);
+    }
+    
+    function hideCrosshair() {
+      crosshairX.style('display', 'none');
+      crosshairY.style('display', 'none');
+      tooltip.style.display = 'none';
+      labelX.style.display = 'none';
+      labelY.style.display = 'none';
+    }
+    
+    function onMouseMove(event) {
+      const [mx, my] = d3.pointer(event, svgNode);
+      const gx = mx - margin.left;
+      const gy = my - margin.top;
+      if (gx < 0 || gx > innerWidth || gy < 0 || gy > priceHeight) {
+        hideCrosshair();
+        return;
+      }
+      crosshairX.style('display', null)
+        .attr('transform', `translate(${gx}, 0)`);
+      crosshairY.style('display', null)
+        .attr('transform', `translate(0, ${gy})`);
+      
+      const index = Math.floor(gx / xScale.step());
+      const d = chartData[index];
+      if (!d) { hideCrosshair(); return; }
+      const dateStr = formatDate(d.time);
+      const priceVal = yScale.invert(gy).toFixed(2);
+      labelX.style.display = 'block';
+      labelX.textContent = dateStr;
+      labelX.style.left = mx + 'px';
+      labelX.style.top = (margin.top + priceHeight + 4) + 'px';
+      labelY.style.display = 'block';
+      labelY.textContent = priceVal;
+      labelY.style.left = (margin.left + innerWidth + 4) + 'px';
+      labelY.style.top = (my) + 'px';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (mx + 15) + 'px';
+      tooltip.style.top = (my + 15) + 'px';
+      tooltip.innerHTML = `
+        <div><strong>${dateStr}</strong></div>
+        <div>O: ${d.open}</div>
+        <div>H: ${d.high}</div>
+        <div>L: ${d.low}</div>
+        <div>C: ${d.close}</div>
+        <div>V: ${d.volume}</div>
+      `;
+    }
+    
+    function onZoom(ev) {
+      const t = ev.transform;
+      // Update xScale’s range based on zoom
+      const newRange = [0, innerWidth].map(d => (d - t.x) / t.k);
+      xScale.range(newRange);
+      redrawChart();
+    }
+    
+    function redrawChart() {
+      xAxisG.call(d3.axisBottom(xScale).tickFormat(t => formatDate(t)));
+      if (chartType === 'candlestick' || chartType === 'bars') {
+        candleG.selectAll('rect.candlestick-up, rect.candlestick-down')
+          .attr('x', d => xScale(d.time))
+          .attr('width', chartType==='bars' ? xScale.bandwidth()*0.4 : xScale.bandwidth());
+        candleG.selectAll('line.candlestick-up, line.candlestick-down')
+          .attr('x1', d => xScale(d.time) + xScale.bandwidth()/2)
+          .attr('x2', d => xScale(d.time) + xScale.bandwidth()/2);
+      }
+      volumeG.selectAll('.volume-up, .volume-down')
+        .attr('x', d => xScale(d.time))
+        .attr('width', xScale.bandwidth());
+    }
+    
+    function drawMovingAverage() {
+      const period = 10;
+      if (chartData.length < period) return;
+      const maData = chartData.map((d, i) => {
+        if (i < period - 1) return null;
+        let sum = 0;
+        for (let j = i - period + 1; j <= i; j++) {
+          sum += chartData[j].close;
+        }
+        return { time: d.time, value: sum / period };
+      }).filter(d => d !== null);
+      const xScaleContinuous = d3.scaleLinear()
+        .domain(d3.extent(chartData, d => d.time))
+        .range([0, innerWidth]);
+      const maLine = d3.line()
+        .x(d => xScaleContinuous(d.time))
+        .y(d => yScale(d.value))
+        .curve(d3.curveMonotoneX);
+      mainG.append('path')
+        .datum(maData)
+        .attr('fill', 'none')
+        .attr('stroke', '#f0c674')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '5,3')
+        .attr('d', maLine);
+    }
+    
+    /* ------------------------------
+       3) LOAD DATA & LIVE UPDATE LOGIC
+    ------------------------------ */
+    async function loadDataAndRender() {
+      if (isFetching) return;
+      isFetching = true;
+      try {
+        chartData = await fetchCandlesKuCoin(currentInterval, symbol);
+        if (chartData.length > 1) {
+          const last = chartData[chartData.length - 1];
+          const prev = chartData[chartData.length - 2];
+          const chg = ((last.close - prev.close) / prev.close) * 100;
+          priceDisplay.textContent = last.close.toFixed(2);
+          priceChangeDisplay.textContent = chg.toFixed(2) + '%';
+        } else {
+          priceDisplay.textContent = '--';
+          priceChangeDisplay.textContent = '--';
+        }
+        symbolDisplay.textContent = symbol.replace('-', ' / ');
+        shapes = [];
+        selectedShape = null;
+        setupChart();
+      } catch(err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+      } finally {
+        isFetching = false;
+      }
+      // Schedule the next update (clear any existing timeout first)
+      clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(loadDataAndRender, fetchInterval);
+    }
+    
+    // Initial load
+    loadDataAndRender();
+    window.addEventListener('resize', loadDataAndRender);
+    
+    /* ------------------------------
+       4) DRAWING TOOLS & INTERACTION HANDLERS
+    ------------------------------ */
+    // Mouse-based drawing events on chart SVG
+    chartSvg.on('mousedown', (event) => {
+      if (currentTool === 'cursor' || currentTool === 'eraser') {
+        const [mx, my] = d3.pointer(event, svgNode);
+        const shape = findShapeAt(mx, my);
+        selectShape(shape);
+      } else {
+        isDrawing = true;
+        const [mx, my] = d3.pointer(event, svgNode);
+        startDrawing(mx, my);
+      }
+    });
+    
+    chartSvg.on('mousemove', (event) => {
+      if (isDrawing && tempShape) {
+        const [mx, my] = d3.pointer(event, svgNode);
+        updateDrawing(mx, my);
+      }
+    });
+    
+    chartSvg.on('mouseup', () => {
+      if (isDrawing) finishDrawing();
+    });
+    
+    function startDrawing(x, y) {
+      if (currentTool === 'line') {
+        tempShape = { type: 'line', x1: x, y1: y, x2: x, y2: y };
+        tempShape.el = chartSvg.append('line')
+          .attr('class', 'draw-line')
+          .attr('x1', x).attr('y1', y)
+          .attr('x2', x).attr('y2', y);
+      } else if (currentTool === 'hline') {
+        tempShape = { type: 'hline', y1: y, y2: y, x1: 0, x2: width };
+        tempShape.el = chartSvg.append('line')
+          .attr('class', 'draw-hline')
+          .attr('x1', 0).attr('x2', width)
+          .attr('y1', y).attr('y2', y);
+        shapes.push(tempShape); tempShape = null; isDrawing = false;
+      } else if (currentTool === 'vline') {
+        tempShape = { type: 'vline', x1: x, x2: x, y1: 0, y2: height };
+        tempShape.el = chartSvg.append('line')
+          .attr('class', 'draw-vline')
+          .attr('x1', x).attr('x2', x)
+          .attr('y1', 0).attr('y2', height);
+        shapes.push(tempShape); tempShape = null; isDrawing = false;
+      } else if (currentTool === 'rect') {
+        tempShape = { type: 'rect', x, y, width: 0, height: 0 };
+        tempShape.el = chartSvg.append('rect')
+          .attr('class', 'draw-rect')
+          .attr('x', x).attr('y', y)
+          .attr('width', 0).attr('height', 0);
+      } else if (currentTool === 'ellipse') {
+        tempShape = { type: 'ellipse', cx: x, cy: y, rx: 0, ry: 0 };
+        tempShape.el = chartSvg.append('ellipse')
+          .attr('class', 'draw-ellipse')
+          .attr('cx', x).attr('cy', y)
+          .attr('rx', 0).attr('ry', 0);
+      } else if (currentTool === 'arrow') {
+        tempShape = { type: 'arrow', x1: x, y1: y, x2: x, y2: y };
+        chartSvg.select('#arrow-marker').remove();
+        chartSvg.append('defs').append('marker')
+          .attr('id', 'arrow-marker')
+          .attr('viewBox', '0 0 10 10')
+          .attr('refX', '10')
+          .attr('refY', '5')
+          .attr('markerUnits', 'strokeWidth')
+          .attr('markerWidth', '8')
+          .attr('markerHeight', '6')
+          .attr('orient', 'auto')
+          .append('path')
+          .attr('d', 'M 0 0 L 10 5 L 0 10 z')
+          .attr('fill', '#f0c674');
+        tempShape.el = chartSvg.append('line')
+          .attr('class', 'draw-arrow')
+          .attr('marker-end', 'url(#arrow-marker)')
+          .attr('x1', x).attr('y1', y)
+          .attr('x2', x).attr('y2', y);
+      } else if (currentTool === 'text') {
+        const userText = prompt('Enter text:', 'Text');
+        if (userText === null) { isDrawing = false; return; }
+        tempShape = { type:'text', x, y, text: userText };
+        tempShape.el = chartSvg.append('text')
+          .attr('class', 'draw-text')
+          .attr('x', x).attr('y', y)
+          .text(userText);
+        shapes.push(tempShape); tempShape = null; isDrawing = false;
+      } else if (currentTool === 'measure') {
+        measurePoints.push([x, y]);
+        if (measurePoints.length === 2) {
+          const [x1, y1] = measurePoints[0];
+          const [x2, y2] = measurePoints[1];
+          const measureShape = { type:'measure', x1, y1, x2, y2 };
+          measureShape.el = chartSvg.append('line')
+            .attr('class', 'draw-measure')
+            .attr('x1', x1).attr('y1', y1)
+            .attr('x2', x2).attr('y2', y2);
+          const priceDiff = yScale.invert(y1) - yScale.invert(y2);
+          const pctDiff = (priceDiff / yScale.invert(y1)) * 100;
+          measureShape.labelEl = chartSvg.append('text')
+            .attr('class', 'draw-measure-label')
+            .attr('x', (x1 + x2) / 2)
+            .attr('y', (y1 + y2) / 2 - 5)
+            .text(`${priceDiff.toFixed(2)} (${pctDiff.toFixed(2)}%)`);
+          shapes.push(measureShape);
+          measurePoints = []; isDrawing = false;
+        }
+      }
+    }
+    
+    function updateDrawing(nx, ny) {
+      if (!tempShape) return;
+      if (tempShape.type === 'line' || tempShape.type === 'arrow') {
+        tempShape.x2 = nx; tempShape.y2 = ny;
+        tempShape.el.attr('x2', nx).attr('y2', ny);
+      } else if (tempShape.type === 'rect') {
+        const x0 = tempShape.x, y0 = tempShape.y;
+        const w = nx - x0, h = ny - y0;
+        tempShape.width = w; tempShape.height = h;
+        tempShape.el.attr('x', Math.min(x0, nx))
+          .attr('y', Math.min(y0, ny))
+          .attr('width', Math.abs(w))
+          .attr('height', Math.abs(h));
+      } else if (tempShape.type === 'ellipse') {
+        const cx0 = tempShape.cx, cy0 = tempShape.cy;
+        const rx = Math.abs(nx - cx0), ry = Math.abs(ny - cy0);
+        tempShape.rx = rx; tempShape.ry = ry;
+        tempShape.el.attr('cx', cx0)
+          .attr('cy', cy0)
+          .attr('rx', rx)
+          .attr('ry', ry);
+      }
+    }
+    
+    function finishDrawing() {
+      if (tempShape && tempShape.type !== 'hline' && tempShape.type !== 'vline') {
+        shapes.push(tempShape);
+      }
+      tempShape = null; isDrawing = false;
+    }
+    
+    /* ------------------------------
+       5) SHAPE SELECTION & DRAGGING
+    ------------------------------ */
+    function findShapeAt(x, y) {
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        const s = shapes[i];
+        if (s.type === 'line' || s.type === 'arrow' || s.type === 'measure') {
+          if (distToLine(x, y, s.x1, s.y1, s.x2, s.y2) < 5) return s;
+        } else if (s.type === 'rect') {
+          const minX = Math.min(s.x, s.x + s.width);
+          const maxX = Math.max(s.x, s.x + s.width);
+          const minY = Math.min(s.y, s.y + s.height);
+          const maxY = Math.max(s.y, s.y + s.height);
+          if (x >= minX && x <= maxX && y >= minY && y <= maxY) return s;
+        } else if (s.type === 'ellipse') {
+          const minX = s.cx - s.rx, maxX = s.cx + s.rx;
+          const minY = s.cy - s.ry, maxY = s.cy + s.ry;
+          if (x >= minX && x <= maxX && y >= minY && y <= maxY) return s;
+        } else if (s.type === 'text') {
+          const bbox = s.el.node().getBBox();
+          if (x >= bbox.x && x <= bbox.x + bbox.width &&
+              y >= bbox.y && y <= bbox.y + bbox.height)
+            return s;
+        } else if (s.type === 'hline' && Math.abs(y - s.y1) < 5) {
+          return s;
+        } else if (s.type === 'vline' && Math.abs(x - s.x1) < 5) {
+          return s;
+        }
+      }
+      return null;
+    }
+    
+    function distToLine(px, py, x1, y1, x2, y2) {
+      const A = px - x1, B = py - y1;
+      const C = x2 - x1, D = y2 - y1;
+      const dot = A * C + B * D;
+      const lenSq = C * C + D * D;
+      let param = lenSq !== 0 ? dot / lenSq : -1;
+      let xx, yy;
+      if (param < 0) { xx = x1; yy = y1; }
+      else if (param > 1) { xx = x2; yy = y2; }
+      else { xx = x1 + param * C; yy = y1 + param * D; }
+      const dx = px - xx, dy = py - yy;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    function selectShape(s) {
+      if (selectedShape && selectedShape.el) {
+        selectedShape.el.classed('draw-selected', false);
+      }
+      selectedShape = s;
+      if (selectedShape && selectedShape.el) {
+        selectedShape.el.classed('draw-selected', true);
+      }
+    }
+    
+    chartSvg.on('mousedown.shapeDrag', function(event) {
+      if (currentTool !== 'cursor' || !selectedShape) return;
+      const [sx, sy] = d3.pointer(event, svgNode);
+      let startX = sx, startY = sy;
+      function onDrag(ev) {
+        const [mx, my] = d3.pointer(ev, svgNode);
+        const dx = mx - startX, dy = my - startY;
+        startX = mx; startY = my;
+        moveShape(selectedShape, dx, dy);
+      }
+      function onUp() {
+        chartSvg.on('mousemove.shapeDrag', null).on('mouseup.shapeDrag', null);
+      }
+      chartSvg.on('mousemove.shapeDrag', onDrag).on('mouseup.shapeDrag', onUp);
+    });
+    
+    function moveShape(s, dx, dy) {
+      if (s.type === 'line' || s.type === 'arrow' || s.type === 'measure') {
+        s.x1 += dx; s.y1 += dy;
+        s.x2 += dx; s.y2 += dy;
+        s.el.attr('x1', s.x1).attr('y1', s.y1)
+           .attr('x2', s.x2).attr('y2', s.y2);
+        if (s.labelEl) {
+          const lx = (s.x1 + s.x2) / 2, ly = (s.y1 + s.y2) / 2 - 5;
+          s.labelEl.attr('x', lx).attr('y', ly);
+        }
+      } else if (s.type === 'rect') {
+        s.x += dx; s.y += dy;
+        s.el.attr('x', Math.min(s.x, s.x + s.width))
+           .attr('y', Math.min(s.y, s.y + s.height));
+      } else if (s.type === 'ellipse') {
+        s.cx += dx; s.cy += dy;
+        s.el.attr('cx', s.cx).attr('cy', s.cy);
+      } else if (s.type === 'text') {
+        s.x += dx; s.y += dy;
+        s.el.attr('x', s.x).attr('y', s.y);
+      } else if (s.type === 'hline') {
+        s.y1 += dy; s.y2 += dy;
+        s.el.attr('y1', s.y1).attr('y2', s.y2);
+      } else if (s.type === 'vline') {
+        s.x1 += dx; s.x2 += dx;
+        s.el.attr('x1', s.x1).attr('x2', s.x2);
+      }
+    }
+    
+    /* ------------------------------
+       6) ERASE ALL DRAWINGS
+    ------------------------------ */
+    function eraseAll() {
+      shapes.forEach(s => { if (s.el) s.el.remove(); if (s.labelEl) s.labelEl.remove(); });
+      shapes = [];
+      selectedShape = null;
+    }
+    
+    /* ------------------------------
+       7) TOOLBAR HANDLERS
+    ------------------------------ */
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTool = btn.dataset.tool;
+        if (currentTool === 'eraser') {
+          eraseAll();
+          currentTool = 'cursor';
+          document.querySelector('.tool-btn[data-tool="cursor"]').classList.add('active');
+        }
+      });
+    });
+    
+    document.querySelectorAll('.intervals button').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.intervals button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentInterval = btn.dataset.interval;
+        await loadDataAndRender();
+      });
+    });
+    
+    document.querySelectorAll('.chart-types button').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.chart-types button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        chartType = btn.dataset.type;
+        await loadDataAndRender();
+      });
+    });
+    
+    document.getElementById('ma-toggle').addEventListener('click', async () => {
+      showMA = !showMA;
+      document.getElementById('ma-toggle').classList.toggle('active', showMA);
+      await loadDataAndRender();
+    });
+    
+    symbolBtn.addEventListener('click', async () => {
+      const inp = symbolInput.value.trim();
+      if (inp) symbol = inp;
+      await loadDataAndRender();
+    });
+    
+    /* ------------------------------
+       8) HELPER FUNCTIONS
+    ------------------------------ */
+    function formatDate(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+    
+  </script>
+</body>
+</html>

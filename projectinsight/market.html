@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Markets</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+    }
+    header {
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      background-color: #333; 
+      color: #fff; 
+      padding: 10px 20px;
+    }
+    header h1 {
+      margin: 0; 
+      font-size: 24px;
+    }
+    /* Removed the .balance style since it's no longer needed */
+
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .controls input[type="text"],
+    .controls select {
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #fff;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #333;
+      color: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+    .star {
+      cursor: pointer;
+      font-size: 18px;
+      color: #ccc;
+    }
+    .star.filled {
+      color: gold;
+    }
+    .trade-button {
+      padding: 8px 12px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .trade-button:hover {
+      background-color: #218838;
+    }
+    /* Removed the .recent-activity styles since it's no longer needed */
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      th, td {
+        padding: 8px;
+        font-size: 14px;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      .controls > * {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Markets</h1>
+    <!-- Removed the balance display -->
+  </header>
+  <div class="container">
+    <div class="controls">
+      <input type="text" id="searchBar" placeholder="Search assets..." />
+      <select id="filterSelect">
+        <option value="All">All Types</option>
+        <option value="Crypto">Crypto</option>
+        <option value="Fiat">Fiat</option>
+        <option value="Stocks">Stocks</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>★</th>
+          <th>Asset</th>
+          <th>Type</th>
+          <th>Current Price (EUR)</th>
+          <th>In Your Wallet</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="assetsTableBody">
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+
+    <!-- Removed the recent-activity section -->
+  </div>
+
+  <script>
+    /**********************************************
+     * GLOBALS
+     **********************************************/
+    let currentUser = null;
+    let userWallets = [];      // from /api/user/:id/wallets
+    let coinPricesUSD = {};    // from /api/coin-prices  (USD)
+    let exchangeRates = {};    // from Exchangerate-API  (USD -> other)
+    let userCurrency = 'USD';  // fallback if not found
+
+    // For the example, here is a big array of possible assets:
+    // (exactly as your watchlist example, but shortened for clarity)
+    const assets = [
+      { symbol: 'AAPL',  name: 'Apple',                    type: 'Stocks' },
+      { symbol: 'AAVE',  name: 'AAVE',                     type: 'Crypto' },
+      { symbol: 'ABT',   name: 'Abbot Labs',               type: 'Stocks' },
+      { symbol: 'ADA',   name: 'Cardano',                  type: 'Crypto' },
+      { symbol: 'ADBE',  name: 'Adobe',                    type: 'Stocks' },
+      { symbol: 'ALGO',  name: 'Algorand',                 type: 'Crypto' },
+      { symbol: 'AMZN',  name: 'Amazon',                   type: 'Stocks' },
+      { symbol: 'AUD',   name: 'Australian Dollar',        type: 'Fiat'   },
+      { symbol: 'AVAX',  name: 'Avalanche',                type: 'Crypto' },
+      { symbol: 'AXS',   name: 'Axie Infinity',            type: 'Crypto' },
+      { symbol: 'BABA',  name: 'Alibaba',                  type: 'Stocks' },
+      { symbol: 'BAC',   name: 'Bank of America',          type: 'Stocks' },
+      { symbol: 'BCH',   name: 'Bitcoin Cash',             type: 'Crypto' },
+      { symbol: 'BTC',   name: 'Bitcoin',                  type: 'Crypto' },
+      { symbol: 'CAD',   name: 'Canadian Dollar',          type: 'Fiat'   },
+      { symbol: 'CHF',   name: 'Swiss Franc',              type: 'Fiat'   },
+      { symbol: 'CRO',   name: 'Cronos',                   type: 'Crypto' },
+      { symbol: 'DAI',   name: 'Dai',                      type: 'Crypto' },
+      { symbol: 'DOGE',  name: 'Dogecoin',                 type: 'Crypto' },
+      { symbol: 'DOT',   name: 'Polkadot',                 type: 'Crypto' },
+      { symbol: 'ETH',   name: 'Ethereum',                 type: 'Crypto' },
+      { symbol: 'EUR',   name: 'Euro',                     type: 'Fiat'   },
+      { symbol: 'FB',    name: 'Meta Platforms Inc',       type: 'Stocks' },
+      { symbol: 'GBP',   name: 'British Pound',            type: 'Fiat'   },
+      { symbol: 'GOOGL', name: 'Google',                   type: 'Stocks' },
+      { symbol: 'LTC',   name: 'Litecoin',                 type: 'Crypto' },
+      { symbol: 'MATIC', name: 'Polygon',                  type: 'Crypto' },
+      { symbol: 'MSFT',  name: 'Microsoft',                type: 'Stocks' },
+      { symbol: 'PEPE',  name: 'Pepe',                     type: 'Crypto' },
+      { symbol: 'SOL',   name: 'Solana',                   type: 'Crypto' },
+      { symbol: 'TSLA',  name: 'Tesla',                    type: 'Stocks' },
+      { symbol: 'UNI',   name: 'Uniswap',                  type: 'Crypto' },
+      { symbol: 'USD',   name: 'United States Dollar',     type: 'Fiat'   },
+      { symbol: 'USDC',  name: 'USD Coin',                 type: 'Crypto' },
+      { symbol: 'USDT',  name: 'Tether',                   type: 'Crypto' },
+      { symbol: 'XRP',   name: 'Ripple',                   type: 'Crypto' }
+    ];
+
+    // Map shortName -> CoinGecko ID (to find price in USD)
+    // If not found, fallback to 'usd-coin' in guessCoinGeckoKey
+    const coinGeckoMap = {
+      BTC: 'bitcoin',
+      ETH: 'ethereum',
+      USDC: 'usd-coin',
+      USDT: 'tether',
+      BNB: 'binancecoin',
+      ADA: 'cardano',
+      DOGE: 'dogecoin',
+      SOL: 'solana',
+      AVAX: 'avalanche-2',
+      SHIB: 'shiba-inu',
+      LTC: 'litecoin',
+      TRX: 'tron',
+      MATIC: 'matic-network',
+      PEPE: 'pepe',
+      XRP: 'ripple',
+      CRO: 'crypto-com-chain',
+      DAI: 'dai',
+      UNI: 'uniswap',
+      AAVE: 'aave',
+      ALGO: 'algorand',
+      BCH: 'bitcoin-cash',
+      AXS: 'axie-infinity'
+      // etc.
+    };
+
+    /**********************************************
+     * On DOMContentLoaded => Initialize
+     **********************************************/
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // 1) Check if user is logged in
+        await checkAuth();
+
+        // 2) Fetch coin prices in USD from your Node backend
+        await fetchCoinPrices();
+
+        // 3) Fetch exchange rates from Exchangerate-API (USD -> other)
+        await fetchExchangeRates();
+
+        // 4) Fetch user wallets
+        await fetchUserWallets();
+
+        // 5) (Removed total balance calculation and display)
+
+        // 6) (Removed notifications fetching and displaying)
+
+        // 7) Set up table: star watchlist, search, filter
+        document.getElementById('searchBar').addEventListener('input', renderTable);
+        document.getElementById('filterSelect').addEventListener('change', renderTable);
+
+        // Initial table render
+        renderTable();
+
+      } catch (error) {
+        console.error('Initialization error:', error);
+        alert('Failed to load. Redirecting to login...');
+        window.location.href = '/login.html';
+      }
+    });
+
+    /**********************************************
+     * 1) Auth check
+     **********************************************/
+    async function checkAuth() {
+      const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!meRes.ok) {
+        // Not authenticated => redirect
+        window.location.href = '/login.html';
+        throw new Error('Not logged in');
+      }
+      const meData = await meRes.json();
+      currentUser = meData.user;
+      // userCurrency from user’s account settings
+      userCurrency = currentUser.accountCurrency || 'USD';
+    }
+
+    /**********************************************
+     * 2) Fetch coin prices from /api/coin-prices (in USD)
+     **********************************************/
+    async function fetchCoinPrices() {
+      try {
+        const res = await fetch('/api/coin-prices', { credentials: 'include' });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch coin prices: ${res.status}`);
+        }
+        coinPricesUSD = await res.json(); // e.g. { bitcoin: { usd: 27123.45 }, ethereum: { usd: 1845.11 }, ... }
+      } catch (err) {
+        console.error('Error fetching coin prices:', err);
+        coinPricesUSD = {};
+      }
+    }
+
+    /**********************************************
+     * 3) Fetch exchange rates (USD -> ???)
+     **********************************************/
+    async function fetchExchangeRates() {
+      // Example key from your deposit.js snippet
+      // Replace with your real key or environment variable
+      const EXCHANGE_RATE_API_KEY = '22b4c51015d34a6cc3fd928b'; 
+      const url = `https://v6.exchangerate-api.com/v6/${EXCHANGE_RATE_API_KEY}/latest/USD`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Exchange rate fetch failed: ${res.status}`);
+        }
+        const data = await res.json();
+        exchangeRates = data.conversion_rates || {};
+      } catch (err) {
+        console.error('Error fetching exchange rates:', err);
+        exchangeRates = {};
+      }
+    }
+
+    /**********************************************
+     * 4) Fetch user wallets => userWallets
+     **********************************************/
+    async function fetchUserWallets() {
+      try {
+        const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch user wallets: ${res.status}`);
+        }
+        userWallets = await res.json(); // array of { id, userId, coinName, shortName, walletAddress, privateKey, balance, ...}
+      } catch (err) {
+        console.error('Error fetching wallets:', err);
+        userWallets = [];
+      }
+    }
+
+    /**********************************************
+     * (Removed total balance calculation and display functions)
+     **********************************************/
+
+    /**********************************************
+     * (Removed notifications fetching and displaying functions)
+     **********************************************/
+
+    /**********************************************
+     * 7) Render the assets table
+     **********************************************/
+    function renderTable() {
+      const searchQuery = document.getElementById('searchBar').value.toLowerCase();
+      const filterType = document.getElementById('filterSelect').value;
+      const starredSymbols = getStarredAssets();
+
+      // Filter by search and type
+      let filtered = assets.filter(a => {
+        const matchesSearch = a.name.toLowerCase().includes(searchQuery) ||
+                              a.symbol.toLowerCase().includes(searchQuery);
+        const matchesFilter = (filterType === 'All') || (a.type === filterType);
+        return matchesSearch && matchesFilter;
+      });
+
+      // Sort: starred first, then alphabetical by name
+      filtered.sort((a, b) => {
+        const aStar = starredSymbols.includes(a.symbol);
+        const bStar = starredSymbols.includes(b.symbol);
+        if (aStar && !bStar) return -1;
+        if (!aStar && bStar) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      const tbody = document.getElementById('assetsTableBody');
+      tbody.innerHTML = '';
+
+      for (let asset of filtered) {
+        const tr = document.createElement('tr');
+
+        // Star cell
+        const starTd = document.createElement('td');
+        const starIcon = document.createElement('span');
+        starIcon.textContent = '★';
+        starIcon.classList.add('star');
+        if (starredSymbols.includes(asset.symbol)) {
+          starIcon.classList.add('filled');
+        }
+        starIcon.onclick = () => toggleStar(asset.symbol);
+        starTd.appendChild(starIcon);
+        tr.appendChild(starTd);
+
+        // Asset name
+        const nameTd = document.createElement('td');
+        nameTd.textContent = asset.name;
+        tr.appendChild(nameTd);
+
+        // Type
+        const typeTd = document.createElement('td');
+        typeTd.textContent = asset.type;
+        tr.appendChild(typeTd);
+
+        // Current Price in EUR
+        // We'll compute it from coinPricesUSD => USD -> EUR
+        let priceEur = 0;
+        if (asset.type === 'Crypto') {
+          const usdPrice = getUsdPriceFromShortName(asset.symbol);
+          const eurRate = exchangeRates['EUR'] || 1;
+          priceEur = usdPrice * eurRate;
+        } else if (asset.type === 'Fiat') {
+          // Very rough fallback if it's user's local currency = EUR or something
+          // For a real app, fetch real fiat rates in EUR
+          // Just do a naive approach: if symbol=EUR => 1, else 0
+          priceEur = (asset.symbol === 'EUR') ? 1 : 0;
+        } else {
+          // Stocks fallback => 0 for now or static if you prefer
+          priceEur = 0;
+        }
+        const priceTd = document.createElement('td');
+        priceTd.textContent = `€${formatNumber(priceEur)}/${asset.symbol}`;
+        tr.appendChild(priceTd);
+
+        // In Your Wallet
+        // Check if the user has a wallet with shortName == asset.symbol
+        let userBalance = '0.00';
+        const foundWallet = userWallets.find(w => w.shortName.toUpperCase() === asset.symbol.toUpperCase());
+        if (foundWallet && foundWallet.balance) {
+          userBalance = foundWallet.balance;
+        }
+        const walletTd = document.createElement('td');
+        walletTd.textContent = `${userBalance} ${asset.symbol}`;
+        tr.appendChild(walletTd);
+
+        // Action => Trade button
+        const actionTd = document.createElement('td');
+        const tradeBtn = document.createElement('a');
+        tradeBtn.href = '/trade.html';
+        tradeBtn.textContent = 'Trade';
+        tradeBtn.classList.add('trade-button');
+        actionTd.appendChild(tradeBtn);
+        tr.appendChild(actionTd);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    /**********************************************
+     * STARRED ASSETS (Cookies) 
+     **********************************************/
+    function getStarredAssets() {
+      const name = 'starred=';
+      const decoded = decodeURIComponent(document.cookie);
+      const parts = decoded.split(';');
+      for (let p of parts) {
+        const c = p.trim();
+        if (c.startsWith(name)) {
+          return c.substring(name.length).split(',');
+        }
+      }
+      return [];
+    }
+
+    function setStarredAssets(arr) {
+      // Store for 1 year
+      const expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      document.cookie = `starred=${arr.join(',')}; path=/; expires=${expires.toUTCString()}`;
+    }
+
+    function toggleStar(symbol) {
+      let starred = getStarredAssets();
+      if (starred.includes(symbol)) {
+        // remove
+        starred = starred.filter(s => s !== symbol);
+      } else {
+        starred.push(symbol);
+        alert('Added to watchlist');
+      }
+      setStarredAssets(starred);
+      renderTable();
+    }
+
+    /**********************************************
+     * PRICE UTILITIES
+     **********************************************/
+    function getUsdPriceFromShortName(shortName) {
+      // Convert symbol => coinGeckoMap => coinGeckoId => coinPricesUSD
+      const key = guessCoinGeckoKey(shortName);
+      if (!coinPricesUSD[key] || !coinPricesUSD[key].usd) {
+        // fallback
+        return 1; // treat unknown as stable $1
+      }
+      return coinPricesUSD[key].usd;
+    }
+
+    function guessCoinGeckoKey(shortName) {
+      const upper = shortName.toUpperCase();
+      if (coinGeckoMap[upper]) return coinGeckoMap[upper];
+      return 'usd-coin'; // fallback as stable
+    }
+
+    /**********************************************
+     * HELPER: number formatting
+     **********************************************/
+    function formatNumber(num) {
+      if (!num || isNaN(num)) return '0.00';
+      return parseFloat(num).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6
+      });
+    }
+
+  </script>
+</body>
+</html>
