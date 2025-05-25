@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Notifications Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #04080B; color: #E0E6ED; padding: 20px; }
+        #notification-icon-placeholder { font-size: 24px; cursor: pointer; display: inline-block; position: relative; }
+        #notification-badge {
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 1px 5px;
+            font-size: 0.7em;
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            display: none; /* Initially hidden */
+        }
+        /* Panel would be positioned absolutely in a real layout */
+        /* Styles from notifications_panel_content.html are included there */
+    </style>
+</head>
+<body>
+    <h1>Notifications Test</h1>
+    <p>This page tests the notification panel and its JavaScript logic.</p>
+
+    <!-- Conceptual Bell Icon and Badge (would be in main_layout.html) -->
+    <div id="notification-icon-placeholder" title="Notifications">
+        🔔<span id="notification-badge">0</span>
+    </div>
+
+    <!-- The content of notifications_panel_content.html is effectively inlined here for the test -->
+    <div id="notifications-panel" style="margin-top:10px; width: 350px; border: 1px solid #555; display: none;">
+        <!-- Start of content from notifications_panel_content.html -->
+        <div id="notifications-panel-content" style="background-color: #1A1E21; color: #E0E6ED; border: 1px solid #2A2E31; border-radius: 5px; padding: 15px; width: 100%; max-height: 400px; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #2A2E31;">
+                <h4 style="margin: 0; color: #E0E6ED; font-size: 1.1em;">Notifications</h4>
+                <button id="mark-all-read-btn" class="button" style="background-color: #08a88a; color: #0A0E11; font-size: 0.8em; padding: 5px 8px;">Mark all as read</button>
+            </div>
+            <div id="notifications-list">
+                <p id="notifications-loading" style="text-align: center; color: #A0A6AD;">Loading notifications...</p>
+            </div>
+            <div id="no-notifications-message" style="text-align: center; color: #A0A6AD; padding-top: 20px; display: none;">
+                You have no new notifications.
+            </div>
+        </div>
+        <style>
+            .button { /* Basic button style if not globally available */
+              padding: 5px 10px;
+              margin: 2px;
+              cursor: pointer;
+              background-color: #4CAF50;
+              color: white;
+              border: none;
+              border-radius: 3px;
+            }
+            .notification-item { /* Style for each notification item */
+                padding: 10px; 
+                border-bottom: 1px solid #2A2E31; 
+                cursor: pointer;
+            }
+            .notification-item.unread {
+                background-color: #2a3b4d; /* A slightly different background for unread items */
+            }
+            .notification-item:hover {
+                background-color: #2c3136;
+            }
+            .notification-item:last-child {
+                border-bottom: none;
+            }
+        </style>
+        <!-- End of content from notifications_panel_content.html -->
+    </div>
+
+    <script src="js/notifications_handler.js"></script>
+    <script>
+        // Simulate panel toggle for testing
+        const notificationIconPlaceholder = document.getElementById('notification-icon-placeholder');
+        const notificationsPanel = document.getElementById('notifications-panel');
+        
+        // The actual toggleNotificationsPanel is conceptual in notifications_handler.js
+        // This is a simplified toggle for the test page.
+        if (notificationIconPlaceholder && notificationsPanel) {
+            notificationIconPlaceholder.addEventListener('click', () => {
+                const isVisible = notificationsPanel.style.display === 'block';
+                notificationsPanel.style.display = isVisible ? 'none' : 'block';
+                if (!isVisible && typeof fetchNotifications === 'function') { 
+                    // notifications_handler.js should set currentUserId after its own auth check
+                    // if initializeNotificationSystem is not directly called.
+                    fetchNotifications(); // Will use currentUserId from notifications_handler.js
+                }
+            });
+        }
+        
+        // The notifications_handler.js has a DOMContentLoaded listener that calls an init sequence.
+        // For this test page, it should initialize itself and set up polling.
+        // If currentUserId is not immediately available, fetchNotifications might show "Please log in".
+    </script>
+</body>
+</html>

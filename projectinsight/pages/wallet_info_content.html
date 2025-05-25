@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet Insights</title>
+    <style>
+        /* Basic dark theme styling - can be expanded or use global_theme.css classes */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #04080B; 
+            color: #E0E6ED;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .content-grid {
+            background-color: #0A0E11;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+            max-width: 900px; /* Max width for the content */
+            margin: auto; /* Center it */
+        }
+        h2 {
+            color: #E0E6ED;
+            border-bottom: 1px solid #2A2E31;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .instructional-text {
+            color: #A0A6AD;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+        .external-wallet-item {
+            background-color: #1A1E21;
+            border: 1px solid #2A2E31;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .external-wallet-item h4 {
+            color: #1e90ff;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .external-wallet-item .wallet-text-display {
+            color: #E0E6ED;
+            white-space: pre-wrap; /* Preserve line breaks */
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #0A0E11;
+            border-radius: 4px;
+            min-height: 40px; /* Ensure some height even if empty */
+            border: 1px dashed #2A2E31; /* Subtle border for display area */
+        }
+        .external-wallet-item .wallet-text-edit {
+            width: 100%;
+            min-height: 80px;
+            padding: 8px;
+            box-sizing: border-box;
+            background-color: #04080B;
+            color: #E0E6ED;
+            border: 1px solid #4b545e; /* Slightly more prominent border for edit */
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .external-wallet-item .actions button {
+            padding: 6px 12px;
+            margin-right: 8px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .external-wallet-item .edit-btn {
+            background-color: #2196F3; color: white;
+        }
+        .external-wallet-item .edit-btn:hover { background-color: #1a78c2; }
+
+        .external-wallet-item .save-btn {
+            background-color: #4CAF50; color: white;
+        }
+        .external-wallet-item .save-btn:hover { background-color: #45a049; }
+
+        .external-wallet-item .cancel-btn {
+            background-color: #555; color: white;
+        }
+        .external-wallet-item .cancel-btn:hover { background-color: #444; }
+
+        #statusMessageWalletInfo {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            display: none; 
+        }
+        #statusMessageWalletInfo.success {
+            background-color: rgba(76, 175, 80, 0.2); 
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+        #statusMessageWalletInfo.error {
+            background-color: rgba(244, 67, 54, 0.1); 
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-grid">
+        <h2>Wallet Insights</h2>
+        <p class="instructional-text">Share your knowledge or notes about these crypto wallets/platforms. Your notes are private to you.</p>
+
+        <div id="external-wallets-list">
+            <p id="wallets-loading-message" style="color: #A0A6AD; text-align: center;">Loading your wallet list...</p>
+            <!-- Wallet items will be populated here by JavaScript -->
+        </div>
+        <div id="statusMessageWalletInfo"></div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        const walletsListDiv = document.getElementById('external-wallets-list');
+        const walletsLoadingMessage = document.getElementById('wallets-loading-message');
+        const statusMessageDisplay = document.getElementById('statusMessageWalletInfo');
+
+        function showStatusMessage(message, isError) {
+            statusMessageDisplay.textContent = message;
+            statusMessageDisplay.className = isError ? 'error' : 'success';
+            statusMessageDisplay.style.display = 'block';
+            setTimeout(() => {
+                statusMessageDisplay.style.display = 'none';
+            }, 3000);
+        }
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!res.ok) { 
+                    if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                    throw new Error('Not authenticated'); 
+                }
+                const data = await res.json();
+                currentUser = data.user;
+            } catch (e) { 
+                currentUser = null;
+                if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                throw e;
+            }
+        }
+
+        async function fetchExternalWallets() {
+            if (!currentUser || !currentUser.id) {
+                walletsLoadingMessage.textContent = 'User not found. Please log in.';
+                return;
+            }
+            walletsLoadingMessage.style.display = 'block';
+            walletsListDiv.innerHTML = ''; // Clear previous before loading message if any
+
+            try {
+                const response = await fetch(`/api/user/${currentUser.id}/external-wallets`, { credentials: 'include' });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const wallets = await response.json();
+                
+                walletsLoadingMessage.style.display = 'none';
+                if (wallets.length === 0) {
+                    walletsListDiv.innerHTML = '<p style="color: #A0A6AD;">No external wallet platforms found for your account.</p>';
+                    return;
+                }
+                renderWallets(wallets);
+            } catch (error) {
+                console.error('Error fetching external wallets:', error);
+                walletsLoadingMessage.style.display = 'none';
+                walletsListDiv.innerHTML = `<p style="color: #ff6b6b;">Error loading wallet list: ${error.message}</p>`;
+            }
+        }
+
+        function renderWallets(wallets) {
+            walletsListDiv.innerHTML = ''; // Clear loading/previous
+            wallets.forEach(wallet => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'external-wallet-item';
+                itemDiv.setAttribute('data-wallet-id', wallet.id);
+                itemDiv.setAttribute('data-wallet-name', wallet.walletName); // Store name for PUT request
+
+                itemDiv.innerHTML = `
+                    <h4>${wallet.walletName}</h4>
+                    <div class="wallet-text-display">${wallet.walletText || '(No notes added yet)'}</div>
+                    <textarea class="wallet-text-edit" style="display:none;">${wallet.walletText || ''}</textarea>
+                    <div class="actions">
+                        <button class="edit-btn">Edit</button>
+                        <button class="save-btn" style="display:none;">Save</button>
+                        <button class="cancel-btn" style="display:none;">Cancel</button>
+                    </div>
+                `;
+                walletsListDiv.appendChild(itemDiv);
+            });
+            addEventListenersToWallets();
+        }
+
+        function addEventListenersToWallets() {
+            document.querySelectorAll('.external-wallet-item .edit-btn').forEach(button => {
+                button.addEventListener('click', handleEditClick);
+            });
+            document.querySelectorAll('.external-wallet-item .cancel-btn').forEach(button => {
+                button.addEventListener('click', handleCancelClick);
+            });
+            document.querySelectorAll('.external-wallet-item .save-btn').forEach(button => {
+                button.addEventListener('click', handleSaveClick);
+            });
+        }
+
+        function handleEditClick(event) {
+            const itemDiv = event.target.closest('.external-wallet-item');
+            const displayDiv = itemDiv.querySelector('.wallet-text-display');
+            const editArea = itemDiv.querySelector('.wallet-text-edit');
+            
+            editArea.value = displayDiv.textContent === '(No notes added yet)' ? '' : displayDiv.textContent; // Populate with current text
+            itemDiv.setAttribute('data-original-text', displayDiv.textContent); // Store for cancel
+
+            displayDiv.style.display = 'none';
+            editArea.style.display = 'block';
+            
+            itemDiv.querySelector('.edit-btn').style.display = 'none';
+            itemDiv.querySelector('.save-btn').style.display = 'inline-block';
+            itemDiv.querySelector('.cancel-btn').style.display = 'inline-block';
+            editArea.focus();
+        }
+
+        function handleCancelClick(event) {
+            const itemDiv = event.target.closest('.external-wallet-item');
+            const displayDiv = itemDiv.querySelector('.wallet-text-display');
+            const editArea = itemDiv.querySelector('.wallet-text-edit');
+
+            displayDiv.textContent = itemDiv.getAttribute('data-original-text'); // Restore original text
+            
+            displayDiv.style.display = 'block';
+            editArea.style.display = 'none';
+
+            itemDiv.querySelector('.edit-btn').style.display = 'inline-block';
+            itemDiv.querySelector('.save-btn').style.display = 'none';
+            itemDiv.querySelector('.cancel-btn').style.display = 'none';
+        }
+
+        async function handleSaveClick(event) {
+            const itemDiv = event.target.closest('.external-wallet-item');
+            const extWalletId = itemDiv.dataset.walletId;
+            const walletName = itemDiv.dataset.walletName; // Get stored walletName
+            const editArea = itemDiv.querySelector('.wallet-text-edit');
+            const newWalletText = editArea.value;
+
+            const saveButton = event.target;
+            saveButton.disabled = true;
+            saveButton.textContent = 'Saving...';
+
+            try {
+                const response = await fetch(`/api/user/${currentUser.id}/external-wallets/${extWalletId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Credentials': 'include' },
+                    body: JSON.stringify({ walletName: walletName, walletText: newWalletText }) 
+                });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Failed to save changes.');
+                }
+                
+                const displayDiv = itemDiv.querySelector('.wallet-text-display');
+                displayDiv.textContent = newWalletText || '(No notes added yet)';
+                showStatusMessage('Notes saved successfully!', false);
+
+                // Toggle back to display mode
+                displayDiv.style.display = 'block';
+                editArea.style.display = 'none';
+                itemDiv.querySelector('.edit-btn').style.display = 'inline-block';
+                itemDiv.querySelector('.save-btn').style.display = 'none';
+                itemDiv.querySelector('.cancel-btn').style.display = 'none';
+
+            } catch (error) {
+                console.error('Error saving wallet text:', error);
+                showStatusMessage(`Error: ${error.message}`, true);
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save';
+            }
+        }
+
+        async function initPage() {
+            try {
+                await checkAuth();
+                await fetchExternalWallets();
+            } catch (error) {
+                console.error("Page initialization failed:", error);
+                if (walletsLoadingMessage) walletsLoadingMessage.textContent = 'Failed to load page. Please ensure you are logged in.';
+            }
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

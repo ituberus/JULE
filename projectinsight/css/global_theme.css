@@ -1,0 +1,63 @@
+body {
+    background-color: #04080B;
+    color: #E0E6ED;
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.content-grid {
+    background-color: #0A0E11;
+    padding: 20px;
+    /* Add more layout properties as needed, e.g., Grid or Flexbox */
+}
+
+header {
+    background-color: #1A1D21; /* Slightly different for visual separation */
+    padding: 10px 20px;
+    text-align: center;
+}
+
+#sidebar {
+    background-color: #101418;
+    padding: 15px;
+    width: 200px; /* Example width */
+    float: left; /* Basic layout, can be improved with Flexbox/Grid */
+    height: calc(100vh - 70px); /* Adjust based on header height */
+    overflow-y: auto;
+}
+
+#main-content {
+    margin-left: 220px; /* Adjust based on sidebar width + some spacing */
+    padding: 20px;
+}
+
+/* Clearfix for float layout */
+body::after {
+    content: "";
+    clear: both;
+    display: table;
+}
+
+/* Dashboard placeholder styles */
+#total-balance-section,
+#top-coins-section,
+#chart-container-main,
+#trading-widget-container-main {
+    border: 1px solid #2A2E31; /* Slightly lighter than content grid for visibility */
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+#total-balance-value, #top-coins-list li {
+    font-size: 1.2em;
+    color: #A0A6AD; /* Lighter text for placeholder values */
+}
+#embedded-chart, #embedded-trading-widget {
+    min-height: 200px; /* Placeholder height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #0E1215; /* Slightly darker or different for contrast */
+    border-radius: 4px;
+}

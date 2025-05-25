@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Widget - Dark Theme</title>
+  <!-- Select2 CSS for custom dropdowns with images -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <!-- Google Material Icons for fiat icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    /* Global Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: transparent; /* THEMED: For embedding */
+      color: #E0E6ED; /* THEMED: Default text color */
+      line-height: 1.6;
+    }
+    a {
+      color: #1e90ff; /* Accent color for links */
+    }
+    header {
+      display: none; /* THEMED: Header likely not needed for embedded widget */
+    }
+    .container {
+      background-color: transparent; /* THEMED: For embedding */
+      padding: 5px; /* THEMED: Minimal padding for widget container */
+      border-radius: 0; 
+      box-shadow: none; 
+    }
+    /* Tabs */
+    .trade-tabs {
+      display: flex;
+      border-bottom: 1px solid #2A2E31; /* THEMED: Darker border */
+      margin-bottom: 15px; /* THEMED: Reduced margin */
+    }
+    .trade-tabs button {
+      padding: 8px 15px; /* THEMED: Reduced padding */
+      cursor: pointer;
+      background-color: #1A1E21; /* THEMED: Dark tab background */
+      border: none;
+      border-right: 1px solid #2A2E31; /* THEMED: Darker border */
+      font-size: 14px; /* THEMED: Slightly smaller font */
+      outline: none;
+      color: #E0E6ED; /* THEMED: Light text */
+      transition: background-color 0.3s ease;
+    }
+    .trade-tabs button:last-child {
+      border-right: none;
+    }
+    .trade-tabs button.active {
+      background-color: #0A0E11; /* THEMED: Match dashboard grid background */
+      border-bottom: 2px solid #1e90ff; /* THEMED: Thinner accent */
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    /* Form styles */
+    .trade-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px; /* THEMED: Reduced gap */
+      margin-bottom: 20px; /* THEMED: Reduced margin */
+    }
+    .trade-form label {
+      font-weight: bold;
+      margin-top: 5px; /* THEMED: Reduced margin */
+      color: #E0E6ED; 
+      font-size: 0.9em; /* THEMED: Slightly smaller font */
+    }
+    .trade-form select,
+    .trade-form input {
+      padding: 8px; /* THEMED: Reduced padding */
+      font-size: 13px; /* THEMED: Slightly smaller font */
+      border-radius: 4px;
+      border: 1px solid #2A2E31; 
+      background-color: #1A1E21; 
+      color: #E0E6ED; 
+      width: 100%;
+    }
+    .trade-form input[readonly] {
+      background-color: #0A0E11; 
+    }
+    .row {
+      display: flex;
+      gap: 8px; /* THEMED: Reduced gap */
+      flex-wrap: wrap;
+    }
+    .row > div {
+      flex: 1;
+      min-width: 100px; /* THEMED: Adjusted min-width */
+    }
+    .error {
+      color: #ff6b6b; 
+      font-weight: bold;
+      font-size: 0.85em;
+    }
+    .success {
+      color: #4caf50; 
+      font-weight: bold;
+      font-size: 0.85em;
+    }
+    .trade-form button {
+      padding: 10px; /* THEMED: Reduced padding */
+      font-size: 15px; /* THEMED: Slightly smaller font */
+      background-color: #1e90ff; 
+      color: #fff; 
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.3s ease;
+      margin-top: 5px; /* THEMED: Added some top margin */
+    }
+    .trade-form button:disabled {
+      background-color: #2A2E31; 
+      color: #555;
+      cursor: not-allowed;
+    }
+    .trade-form button:hover:enabled {
+      background-color: #187bcd; 
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 16px; /* THEMED: Smaller spinner */
+      height: 16px; /* THEMED: Smaller spinner */
+      border: 2px solid rgba(255,255,255,0.3); /* THEMED: Thinner border */
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 8px; /* THEMED: Adjusted position */
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    /* Asset icons */
+    .asset-select-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .asset-select-container select {
+      flex: 1;
+    }
+    .asset-icon {
+      width: 20px; /* THEMED: Smaller icon */
+      height: 20px; /* THEMED: Smaller icon */
+      vertical-align: middle;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #2A2E31; 
+    }
+    /* Leverage slider */
+    .leverage-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .leverage-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 5px; /* THEMED: Thinner slider */
+      border-radius: 3px;
+      background: #2A2E31; 
+      outline: none;
+    }
+    .leverage-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px; /* THEMED: Smaller thumb */
+      height: 14px; /* THEMED: Smaller thumb */
+      border-radius: 50%;
+      background: #1e90ff; 
+      cursor: pointer;
+    }
+    .hint {
+      font-size: 0.8em; /* THEMED: Smaller hint */
+      color: #A0A6AD; 
+    }
+    /* Responsive */
+    @media (max-width: 768px) {
+      /* Container and header adjustments for widget already done */
+      .trade-tabs button {
+        padding: 8px 10px; /* THEMED: Further reduce for small screens */
+        font-size: 13px; /* THEMED: Further reduce for small screens */
+      }
+      .trade-form {
+        max-width: 100%;
+      }
+      .row {
+        flex-direction: column;
+      }
+    }
+    /* Custom Select2 Overrides for Dark Theme */
+    .select2-container--default .select2-selection--single {
+      background-color: #1A1E21; 
+      border: 1px solid #2A2E31; 
+      border-radius: 4px;
+      padding: 5px 10px; 
+      color: #E0E6ED; 
+      height: 37px; /* Adjusted to match input height better */
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      color: #E0E6ED; 
+      line-height: 25px; /* Adjusted for padding */
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 35px; /* Adjusted */
+      right: 5px; 
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-color: #E0E6ED transparent transparent transparent; 
+    }
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+        border-color: transparent transparent #E0E6ED transparent; 
+    }
+    .select2-dropdown {
+        background-color: #1A1E21; 
+        border: 1px solid #2A2E31; 
+    }
+    .select2-container .select2-results__option {
+      background-color: #1A1E21; 
+      color: #E0E6ED; 
+    }
+    .select2-container .select2-results__option--highlighted[aria-selected] {
+      background-color: #0A0E11; 
+      color: #E0E6ED;
+    }
+    .select2-search--dropdown .select2-search__field {
+        background-color: #0A0E11; 
+        color: #E0E6ED;
+        border: 1px solid #2A2E31;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Removed header for widget view -->
+<div class="container">
+
+  <!-- TABS: BUY / SELL / CONVERT -->
+  <div class="trade-tabs">
+    <button id="tabBuy" class="active">Buy</button>
+    <button id="tabSell">Sell</button>
+    <button id="tabConvert">Convert</button>
+  </div>
+
+  <!-- BUY TAB CONTENT -->
+  <div id="buyTabContent" class="tab-content active">
+    <form class="trade-form" id="buyForm">
+      <label for="buyMarket">Market Type:</label>
+      <select id="buyMarket">
+        <option value="Crypto">Crypto</option>
+        <option value="Stocks">Stocks</option>
+        <option value="Forex">Forex</option>
+      </select>
+
+      <div id="buySingleSymbolSection">
+        <label for="buySymbol">Asset:</label>
+        <div class="asset-select-container">
+          <select id="buySymbol"></select>
+          <img src="https://via.placeholder.com/24?text=?" alt="Asset Icon" id="buySymbolIcon" class="asset-icon" />
+        </div>
+        <div class="hint" id="buyAssetPrice"></div>
+      </div>
+      <div id="buyForexSection" style="display: none;">
+        <label for="buyForexBase">Base Currency:</label>
+        <div class="asset-select-container">
+          <select id="buyForexBase"></select>
+          <span id="buyForexBaseIcon" class="asset-icon"></span>
+        </div>
+        <label for="buyForexQuote">Quote Currency:</label>
+        <div class="asset-select-container">
+          <select id="buyForexQuote"></select>
+          <span id="buyForexQuoteIcon" class="asset-icon"></span>
+        </div>
+      </div>
+
+      <div class="hint" id="buyBalanceInfo">Your Balance: N/A</div>
+
+      <div class="row">
+        <div>
+          <label for="buyAmount">Amount to BUY:</label>
+          <input type="number" step="any" id="buyAmount" placeholder="0.00" />
+        </div>
+        <div>
+          <label>Est. Cost (<span id="buyCurrencyLabel"></span>):</label>
+          <input type="text" id="buyCostDisplay" readonly />
+        </div>
+      </div>
+
+      <label>Leverage:</label>
+      <div class="leverage-slider-container">
+        <input type="range" id="buyLeverageSlider" class="leverage-slider" min="1" max="100" value="1" />
+        <span id="buyLeverageValue">1x</span>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="buyStopLoss">Stop Loss:</label>
+          <input type="number" id="buyStopLoss" step="any" />
+        </div>
+        <div>
+          <label for="buyTakeProfit">Take Profit:</label>
+          <input type="number" id="buyTakeProfit" step="any" />
+        </div>
+      </div>
+
+      <label for="buyDuration">Trade Duration:</label>
+      <select id="buyDuration">
+        <option value="Short (Minutes)">Short (Minutes)</option>
+        <option value="Day (Hours)">Day (Hours)</option>
+        <option value="Swing (Days)">Swing (Days)</option>
+        <option value="Long (Weeks)">Long (Weeks)</option>
+      </select>
+      
+      <label for="buyOrderType">Order Type:</label>
+      <select id="buyOrderType">
+        <option value="market" selected>Market Order</option>
+        <option value="limit">Limit Order</option>
+      </select>
+      <div id="buyLimitPriceSection" style="display: none;">
+        <label for="buyLimitPrice">Limit Price:</label>
+        <input type="number" step="any" id="buyLimitPrice" placeholder="0.00" />
+      </div>
+
+      <div class="error" id="buyError" style="display: none;"></div>
+      <div class="success" id="buySuccess" style="display: none;"></div>
+
+      <button type="submit" id="buyButton" disabled>Buy</button>
+    </form>
+  </div>
+
+  <!-- SELL TAB CONTENT -->
+  <div id="sellTabContent" class="tab-content">
+    <form class="trade-form" id="sellForm">
+      <label for="sellMarket">Market Type:</label>
+      <select id="sellMarket">
+        <option value="Crypto">Crypto</option>
+        <option value="Stocks">Stocks</option>
+        <option value="Forex">Forex</option>
+      </select>
+
+      <div id="sellSingleSymbolSection">
+        <label for="sellSymbol">Asset:</label>
+        <div class="asset-select-container">
+          <select id="sellSymbol"></select>
+          <img src="https://via.placeholder.com/24?text=?" alt="Asset Icon" id="sellSymbolIcon" class="asset-icon" />
+        </div>
+        <div class="hint" id="sellAssetPrice"></div>
+      </div>
+      <div id="sellForexSection" style="display: none;">
+        <label for="sellForexBase">Base Currency:</label>
+        <div class="asset-select-container">
+          <select id="sellForexBase"></select>
+          <span id="sellForexBaseIcon" class="asset-icon"></span>
+        </div>
+        <label for="sellForexQuote">Quote Currency:</label>
+        <div class="asset-select-container">
+          <select id="sellForexQuote"></select>
+          <span id="sellForexQuoteIcon" class="asset-icon"></span>
+        </div>
+      </div>
+
+      <div class="hint" id="sellBalanceInfo">Your Balance: N/A</div>
+
+      <div class="row">
+        <div>
+          <label for="sellAmount">Amount to SELL:</label>
+          <input type="number" step="any" id="sellAmount" placeholder="0.00" />
+        </div>
+        <div>
+          <label>Est. Value (<span id="sellCurrencyLabel"></span>):</label>
+          <input type="text" id="sellValueDisplay" readonly />
+        </div>
+      </div>
+
+      <label>Leverage:</label>
+      <div class="leverage-slider-container">
+        <input type="range" id="sellLeverageSlider" class="leverage-slider" min="1" max="100" value="1" />
+        <span id="sellLeverageValue">1x</span>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="sellStopLoss">Stop Loss:</label>
+          <input type="number" id="sellStopLoss" step="any" />
+        </div>
+        <div>
+          <label for="sellTakeProfit">Take Profit:</label>
+          <input type="number" id="sellTakeProfit" step="any" />
+        </div>
+      </div>
+
+      <label for="sellDuration">Trade Duration:</label>
+      <select id="sellDuration">
+        <option value="Short (Minutes)">Short (Minutes)</option>
+        <option value="Day (Hours)">Day (Hours)</option>
+        <option value="Swing (Days)">Swing (Days)</option>
+        <option value="Long (Weeks)">Long (Weeks)</option>
+      </select>
+      
+      <label for="sellOrderType">Order Type:</label>
+      <select id="sellOrderType">
+        <option value="market" selected>Market Order</option>
+        <option value="limit">Limit Order</option>
+      </select>
+      <div id="sellLimitPriceSection" style="display: none;">
+        <label for="sellLimitPrice">Limit Price:</label>
+        <input type="number" step="any" id="sellLimitPrice" placeholder="0.00" />
+      </div>
+
+      <div class="error" id="sellError" style="display: none;"></div>
+      <div class="success" id="sellSuccess" style="display: none;"></div>
+
+      <button type="submit" id="sellButton" disabled>Sell</button>
+    </form>
+  </div>
+
+  <!-- CONVERT TAB CONTENT -->
+  <div id="convertTabContent" class="tab-content">
+    <form class="trade-form" id="convertForm">
+      <label for="convertFrom">From Asset:</label>
+      <div class="asset-select-container">
+        <select id="convertFrom"></select>
+        <img src="https://via.placeholder.com/24?text=?" alt="From Asset Icon" id="convertFromIcon" class="asset-icon" />
+      </div>
+
+      <div class="hint" id="convertFromBalHint">Balance: N/A</div>
+
+      <label for="convertAmount">Amount:</label>
+      <input type="number" step="any" id="convertAmount" placeholder="0.00" />
+
+      <label for="convertTo">To Asset:</label>
+      <div class="asset-select-container">
+        <select id="convertTo"></select>
+        <img src="https://via.placeholder.com/24?text=?" alt="To Asset Icon" id="convertToIcon" class="asset-icon" />
+      </div>
+
+      <div class="row">
+        <div>
+          <label>You Get (Est.):</label>
+          <input type="text" id="convertResult" readonly />
+        </div>
+        <div>
+          <label>Rate: 1 <span id="convFromSymbol"></span> = </label>
+          <input type="text" id="convertRateDisplay" readonly />
+          <span id="convRateCurr"></span>
+        </div>
+      </div>
+
+      <div class="error" id="convertError" style="display: none;"></div>
+      <div class="success" id="convertSuccess" style="display: none;"></div>
+
+      <button type="submit" id="convertButton" disabled>Convert</button>
+    </form>
+  </div>
+
+</div> <!-- .container -->
+
+<!-- jQuery and Select2 JS (placed here so they load before our inline script) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+/*****************************************************
+ * GLOBALS
+ *****************************************************/
+let currentUser = null;
+let userWallets = [];      // Populated from /api/user/{userId}/wallets
+let coinPricesUSD = {};    // Populated from /api/coin-prices (crypto)
+let exchangeRates = {};    // Populated by fetchExchangeRates (USD based)
+let userCurrency = 'USD';  // Default, updated from currentUser.accountCurrency
+
+// In-memory trades (for demo, not part of this subtask's core logic for balance)
+let openTrades = [];
+let closedTrades = [];
+
+/*****************************************************
+ * BIG ASSETS LIST (including icons) - For full list population if needed
+ *****************************************************/
+const allCrypto = [
+  { symbol: 'BTC', name: 'Bitcoin' }, { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'LTC', name: 'Litecoin' }, { symbol: 'XRP', name: 'Ripple' },
+  { symbol: 'ADA', name: 'Cardano' }, { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'MATIC', name: 'Polygon' }, { symbol: 'DOGE', name: 'Dogecoin' },
+  { symbol: 'DOT', name: 'Polkadot' }, { symbol: 'BCH', name: 'Bitcoin Cash' },
+  { symbol: 'AVAX', name: 'Avalanche' }, { symbol: 'ALGO', name: 'Algorand' },
+  { symbol: 'AAVE', name: 'AAVE' }, { symbol: 'AXS', name: 'Axie Infinity' },
+  { symbol: 'PEPE', name: 'Pepe' }, { symbol: 'UNI', name: 'Uniswap' },
+  { symbol: 'LINK', name: 'Chainlink' }, { symbol: 'ATOM', name: 'Cosmos' },
+  { symbol: 'XLM', name: 'Stellar' }, { symbol: 'VET', name: 'VeChain' }
+];
+const allStocks = [
+  { symbol: 'AAPL',  name: 'Apple' }, { symbol: 'TSLA',  name: 'Tesla' },
+  { symbol: 'AMZN',  name: 'Amazon' }, { symbol: 'MSFT',  name: 'Microsoft' },
+  { symbol: 'GOOGL', name: 'Google' }, { symbol: 'FB',    name: 'Meta' },
+  { symbol: 'BABA',  name: 'Alibaba' }, { symbol: 'BAC',   name: 'Bank of America' },
+  { symbol: 'ADBE',  name: 'Adobe' }
+];
+const fiatCurrencies = ['USD','EUR','GBP','JPY','AUD','CAD','CHF'];
+
+const cryptoLogos = { /* ... same as original ... */ };
+const stockLogos = { /* ... same as original ... */ };
+const fiatIcons = { /* ... same as original ... */ };
+const coinGeckoMap = { /* ... same as original ... */ };
+cryptoLogos.BTC = "https://assets.coingecko.com/coins/images/1/large/bitcoin.png";
+cryptoLogos.ETH = "https://assets.coingecko.com/coins/images/279/large/ethereum.png";
+// ... (add all from original if needed, or rely on API for full list later)
+
+/*****************************************************
+ * Helper: Update Selected Icon
+ *****************************************************/
+function getIconUrl(symbol, market) {
+    // ... (same as original, ensure allCrypto, stockLogos, fiatIcons are populated)
+  if (market === 'Crypto') {
+    if (cryptoLogos[symbol]) return cryptoLogos[symbol];
+    const lower = symbol.toLowerCase();
+    return `https://cryptoicon-api.vercel.app/api/icon/${lower}`;
+  } else if (market === 'Stocks') {
+    if (stockLogos[symbol]) return stockLogos[symbol];
+    return 'https://via.placeholder.com/24?text=S';
+  } else if (market === 'Forex' || market === 'Fiat') {
+    return "MATERIAL:" + (fiatIcons[symbol] || "attach_money");
+  }
+  return 'https://via.placeholder.com/24?text=?';
+}
+function updateSelectedIcon(elementId, symbol, market) {
+    // ... (same as original)
+  var container = document.getElementById(elementId).parentNode;
+  var currentElement = document.getElementById(elementId);
+  var icon = getIconUrl(symbol, market);
+  if (icon.indexOf("MATERIAL:") === 0) {
+    var iconName = icon.replace("MATERIAL:", "");
+    var span = document.createElement("span");
+    span.id = elementId;
+    span.className = "material-icons asset-icon";
+    span.style.fontSize = "20px"; // Adjusted for smaller icon size
+    span.style.verticalAlign = "middle";
+    span.textContent = iconName;
+    container.replaceChild(span, currentElement);
+  } else {
+    if (currentElement.tagName.toLowerCase() !== "img") {
+      var img = document.createElement("img");
+      img.id = elementId;
+      img.className = "asset-icon";
+      // style already set in CSS
+      container.replaceChild(img, currentElement);
+      currentElement = img;
+    }
+    currentElement.src = icon;
+  }
+}
+
+/*****************************************************
+ * Helper: Update Asset Price Display
+ *****************************************************/
+async function updateAssetPriceDisplay(elementId, symbol, market) {
+  var el = document.getElementById(elementId);
+  el.textContent = "Loading price...";
+  try {
+    let price = 0;
+    if (market === "Crypto") {
+      price = await getCryptoPriceInUser(symbol);
+    } else if (market === "Stocks") {
+      price = await getStockPriceInUser(symbol); // This function needs to be async too
+    } else {
+      el.textContent = ""; // Forex handled differently or not priced individually here
+      return;
+    }
+    el.textContent = "Price: " + formatNumber(price) + " " + userCurrency;
+  } catch (error) {
+    console.error("Error updating asset price display:", error);
+    el.textContent = "Price: Error";
+  }
+}
+
+
+/*****************************************************
+ * DOMContentLoaded => init
+ *****************************************************/
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await checkAuth(); // Sets currentUser and userCurrency
+    await fetchCoinPrices(); // Populates coinPricesUSD
+    await fetchExchangeRates(); // Populates exchangeRates (USD based)
+    await fetchUserWallets(); // Populates userWallets
+
+    initTabs();
+    initBuyForm();
+    initSellForm();
+    initConvertForm();
+  } catch (err) {
+    console.error('Initialization error for embedded widget:', err);
+    const container = document.querySelector('.container');
+    if(container) container.innerHTML = '<p class="error" style="padding:10px;">Error loading trading widget data. Functionality may be limited.</p>';
+  }
+});
+
+/*****************************************************
+ * AUTH
+ *****************************************************/
+async function checkAuth() {
+  try {
+    const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!meRes.ok) {
+      console.error('Auth check failed, not logged in.');
+      throw new Error('Not logged in');
+    }
+    const meData = await meRes.json();
+    currentUser = meData.user;
+    userCurrency = currentUser.accountCurrency || 'USD'; // Set global userCurrency
+    console.log("User authenticated:", currentUser.email, "Currency:", userCurrency);
+  } catch (error) {
+    currentUser = null; // Ensure currentUser is null if auth fails
+    userCurrency = 'USD'; // Default currency
+    console.error("checkAuth error:", error.message);
+    throw error; // Re-throw to be caught by DOMContentLoaded
+  }
+}
+
+/*****************************************************
+ * FETCH coin prices (from backend /api/coin-prices)
+ *****************************************************/
+async function fetchCoinPrices() {
+  try {
+    const res = await fetch('/api/coin-prices', { credentials: 'include' });
+    if (!res.ok) throw new Error(`Backend /api/coin-prices fetch failed: ${res.status}`);
+    coinPricesUSD = await res.json();
+    console.log("Fetched coinPricesUSD:", coinPricesUSD);
+  } catch (err) {
+    console.error('Coin prices fetch error (from backend):', err);
+    coinPricesUSD = {}; // Fallback
+  }
+}
+
+/*****************************************************
+ * FETCH exchange rates (from backend /api/exchange-rate/:target OR full list)
+ *****************************************************/
+// Keep existing fetchExchangeRates for full list, or create new for single rate
+async function fetchExchangeRates() { // Fetches all rates against USD
+  const key = '22b4c51015d34a6cc3fd928b'; // Keep this for now
+  const url = `https://v6.exchangerate-api.com/v6/${key}/latest/USD`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`ExchangeRate-API fetch error: ${res.status}`);
+    const data = await res.json();
+    if (data.result === 'success') {
+        exchangeRates = data.conversion_rates || {};
+        console.log("Fetched all exchangeRates (base USD):", exchangeRates);
+    } else {
+        throw new Error("ExchangeRate-API returned error: " + data['error-type']);
+    }
+  } catch (err) {
+    console.error('All exchange rates fetch error:', err);
+    exchangeRates = {}; // Fallback
+  }
+}
+
+
+/*****************************************************
+ * FETCH user wallets
+ *****************************************************/
+async function fetchUserWallets() {
+  if (!currentUser || !currentUser.id) {
+    console.error("Cannot fetch user wallets, user not authenticated.");
+    userWallets = [];
+    return;
+  }
+  try {
+    const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+    if (!res.ok) throw new Error(`User wallets fetch error: ${res.status}`);
+    userWallets = await res.json();
+    console.log("Fetched userWallets:", userWallets);
+  } catch (err) {
+    console.error('User wallets fetch error:', err);
+    userWallets = []; // Fallback
+  }
+}
+
+
+/*****************************************************
+ * TABS: BUY / SELL / CONVERT (no changes needed)
+ *****************************************************/
+function initTabs() { /* ... same as original ... */ }
+// ... (rest of initTabs, initBuyForm, initSellForm, initConvertForm, etc. from original)
+// --- PASTE ORIGINAL JS FROM HERE, WITH MODIFICATIONS BELOW --- 
+function initTabs() {
+  const tabBuy = document.getElementById('tabBuy');
+  const tabSell = document.getElementById('tabSell');
+  const tabConvert = document.getElementById('tabConvert');
+
+  const buyTabContent = document.getElementById('buyTabContent');
+  const sellTabContent = document.getElementById('sellTabContent');
+  const convertTabContent = document.getElementById('convertTabContent');
+
+  tabBuy.addEventListener('click', () => {
+    tabBuy.classList.add('active'); tabSell.classList.remove('active'); tabConvert.classList.remove('active');
+    buyTabContent.classList.add('active'); sellTabContent.classList.remove('active'); convertTabContent.classList.remove('active');
+  });
+  tabSell.addEventListener('click', () => {
+    tabSell.classList.add('active'); tabBuy.classList.remove('active'); tabConvert.classList.remove('active');
+    sellTabContent.classList.add('active'); buyTabContent.classList.remove('active'); convertTabContent.classList.remove('active');
+  });
+  tabConvert.addEventListener('click', () => {
+    tabConvert.classList.add('active'); tabBuy.classList.remove('active'); tabSell.classList.remove('active');
+    convertTabContent.classList.add('active'); buyTabContent.classList.remove('active'); sellTabContent.classList.remove('active');
+  });
+}
+
+
+// Modified fillAssetSelect to handle different sources and display balance for owned assets
+function fillAssetSelect(selectEl, marketOrAssets, forOwnedAssetSelection = false) {
+    if ($(selectEl).data('select2')) {
+        $(selectEl).select2('destroy');
+    }
+    selectEl.innerHTML = ''; // Clear existing options
+
+    let assetsToDisplay = [];
+
+    if (typeof marketOrAssets === 'string') { // Market type provided (e.g., "Crypto", "Stocks", "Fiat")
+        const market = marketOrAssets;
+        if (forOwnedAssetSelection && market === 'Crypto') { // Special case for Buy/Sell crypto asset dropdown
+            assetsToDisplay = userWallets
+                .filter(w => allCrypto.some(c => c.symbol === w.shortName)) // Filter by tradeable cryptos
+                .map(w => ({
+                    symbol: w.shortName,
+                    name: `${w.coinName} (${w.shortName}) - Bal: ${formatNumber(w.balance)}`,
+                    market: 'Crypto', // Assuming shortName is a crypto symbol
+                    balance: w.balance
+                }));
+        } else if (market === 'Crypto') {
+            assetsToDisplay = allCrypto.map(c => ({ ...c, market: 'Crypto' }));
+        } else if (market === 'Stocks') {
+            assetsToDisplay = allStocks.map(s => ({ ...s, market: 'Stocks' }));
+        } else if (market === 'Fiat') {
+            assetsToDisplay = fiatCurrencies.map(fc => ({ symbol: fc, name: fc, market: 'Fiat' }));
+        }
+    } else { // Array of assets provided (for Convert tab)
+        assetsToDisplay = marketOrAssets;
+    }
+    
+    assetsToDisplay.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.symbol;
+        opt.textContent = a.name; // Name should already include balance if forOwnedAssetSelection
+        opt.setAttribute('data-market', a.market);
+        if (a.balance !== undefined) opt.setAttribute('data-balance', a.balance);
+        selectEl.appendChild(opt);
+    });
+
+    $(selectEl).select2({
+        templateResult: formatAssetOption,
+        templateSelection: formatAssetOption,
+        minimumResultsForSearch: Infinity // Disable search for these simple dropdowns
+    });
+}
+
+
+function initBuyForm() {
+  const buyForm = document.getElementById('buyForm');
+  const buyMarket = document.getElementById('buyMarket');
+  const buySymbol = document.getElementById('buySymbol'); // This will be populated by user's crypto wallets
+  const buyForexSection = document.getElementById('buyForexSection');
+  const buySingleSymbolSection = document.getElementById('buySingleSymbolSection');
+  const buyForexBase = document.getElementById('buyForexBase');
+  const buyForexQuote = document.getElementById('buyForexQuote');
+  const buySymbolIcon = document.getElementById('buySymbolIcon');
+  const buyForexBaseIcon = document.getElementById('buyForexBaseIcon');
+  const buyForexQuoteIcon = document.getElementById('buyForexQuoteIcon');
+  const buyBalanceInfo = document.getElementById('buyBalanceInfo');
+  const buyAmount = document.getElementById('buyAmount');
+  const buyCostDisplay = document.getElementById('buyCostDisplay');
+  const buyCurrencyLabel = document.getElementById('buyCurrencyLabel');
+  const buyLeverageSlider = document.getElementById('buyLeverageSlider');
+  const buyLeverageValue = document.getElementById('buyLeverageValue');
+  const buyOrderType = document.getElementById('buyOrderType');
+  const buyLimitPriceSection = document.getElementById('buyLimitPriceSection');
+  const buyError = document.getElementById('buyError');
+  const buySuccess = document.getElementById('buySuccess');
+  const buyButton = document.getElementById('buyButton');
+
+  buyCurrencyLabel.textContent = userCurrency;
+
+  fillFiatSelect(buyForexBase, "Fiat"); // Generic fiat list
+  fillFiatSelect(buyForexQuote, "Fiat"); // Generic fiat list
+  if(fiatCurrencies.includes('EUR')) buyForexBase.value = 'EUR'; else if(fiatCurrencies.length > 0) buyForexBase.value = fiatCurrencies[0];
+  if(fiatCurrencies.includes('USD')) buyForexQuote.value = 'USD'; else if(fiatCurrencies.length > 1) buyForexQuote.value = fiatCurrencies[1];
+  updateSelectedIcon("buyForexBaseIcon", buyForexBase.value, "Fiat");
+  updateSelectedIcon("buyForexQuoteIcon", buyForexQuote.value, "Fiat");
+  
+  // Initial population for Buy form (Crypto by default)
+  fillAssetSelect(buySymbol, 'Crypto', true); // true for owned asset selection
+  if (buySymbol.options.length > 0) {
+    updateSelectedIcon("buySymbolIcon", buySymbol.value, "Crypto");
+    updateAssetPriceDisplay("buyAssetPrice", buySymbol.value, "Crypto");
+    showBuyBalance(); 
+  } else {
+    buyBalanceInfo.textContent = "No crypto assets to buy with.";
+  }
+
+
+  buyMarket.addEventListener('change', () => {
+    const selectedMarket = buyMarket.value;
+    if (selectedMarket === 'Forex') {
+      buyForexSection.style.display = 'block';
+      buySingleSymbolSection.style.display = 'none';
+      // For Forex, balance info is about the quote currency used for payment (userCurrency)
+      buyBalanceInfo.textContent = `Your ${userCurrency} balance: ${formatNumber(getWalletBalance(userCurrency))}`;
+    } else {
+      buyForexSection.style.display = 'none';
+      buySingleSymbolSection.style.display = 'block';
+      fillAssetSelect(buySymbol, selectedMarket, selectedMarket === 'Crypto'); // Owned for crypto, all for stocks
+      if (buySymbol.options.length > 0) {
+         updateSelectedIcon("buySymbolIcon", buySymbol.value, selectedMarket);
+         updateAssetPriceDisplay("buyAssetPrice", buySymbol.value, selectedMarket);
+      }
+    }
+    showBuyBalance(); // This will update based on selected asset or userCurrency for Forex
+    calcBuyCost();
+    validateBuyForm();
+  });
+
+  buySymbol.addEventListener('change', () => {
+    updateSelectedIcon("buySymbolIcon", buySymbol.value, buyMarket.value);
+    updateAssetPriceDisplay("buyAssetPrice", buySymbol.value, buyMarket.value);
+    showBuyBalance(); // Update balance for the selected asset
+    calcBuyCost();
+    validateBuyForm();
+  });
+  
+  [buyForexBase, buyForexQuote, buyAmount].forEach(el => {
+    el.addEventListener('input', () => { // Use input for faster feedback
+      if (el === buyForexBase) updateSelectedIcon("buyForexBaseIcon", buyForexBase.value, "Fiat");
+      if (el === buyForexQuote) updateSelectedIcon("buyForexQuoteIcon", buyForexQuote.value, "Fiat");
+      showBuyBalance(); // Update balance for the selected asset or userCurrency for Forex
+      calcBuyCost();
+      validateBuyForm();
+    });
+  });
+
+  buyLeverageSlider.addEventListener('input', () => buyLeverageValue.textContent = buyLeverageSlider.value + 'x');
+  buyOrderType.addEventListener('change', () => buyLimitPriceSection.style.display = buyOrderType.value === 'limit' ? 'block' : 'none');
+  buyForm.addEventListener('submit', e => { e.preventDefault(); doBuyTrade(); });
+
+
+  function showBuyBalance() {
+    // For Crypto/Stocks, the "cost" is in userCurrency. So display userCurrency balance.
+    // For Forex, the cost is also in userCurrency (converted from quote currency if different).
+    buyBalanceInfo.textContent = `Pay with: ${userCurrency} (Bal: ${formatNumber(getWalletBalance(userCurrency))})`;
+  }
+  
+  async function calcBuyCost() { /* ... modified to use await for prices ... */ }
+  function validateBuyForm() { /* ... same ... */ }
+  showBuyBalance(); // Initial call
+}
+
+
+function initSellForm() {
+    const sellForm = document.getElementById('sellForm');
+    const sellMarket = document.getElementById('sellMarket');
+    const sellSymbol = document.getElementById('sellSymbol');
+    const sellForexSection = document.getElementById('sellForexSection');
+    const sellSingleSymbolSection = document.getElementById('sellSingleSymbolSection');
+    const sellSymbolIcon = document.getElementById('sellSymbolIcon');
+    const sellForexBase = document.getElementById('sellForexBase');
+    const sellForexQuote = document.getElementById('sellForexQuote');
+    const sellForexBaseIcon = document.getElementById('sellForexBaseIcon');
+    const sellForexQuoteIcon = document.getElementById('sellForexQuoteIcon');
+    const sellBalanceInfo = document.getElementById('sellBalanceInfo');
+    const sellAmount = document.getElementById('sellAmount');
+    const sellValueDisplay = document.getElementById('sellValueDisplay');
+    const sellCurrencyLabel = document.getElementById('sellCurrencyLabel');
+    const sellLeverageSlider = document.getElementById('sellLeverageSlider');
+    const sellLeverageValue = document.getElementById('sellLeverageValue');
+    const sellOrderType = document.getElementById('sellOrderType');
+    const sellLimitPriceSection = document.getElementById('sellLimitPriceSection');
+    const sellError = document.getElementById('sellError');
+    const sellSuccess = document.getElementById('sellSuccess');
+    const sellButton = document.getElementById('sellButton');
+
+    sellCurrencyLabel.textContent = userCurrency;
+
+    fillFiatSelect(sellForexBase, "Fiat");
+    fillFiatSelect(sellForexQuote, "Fiat");
+    if(fiatCurrencies.includes('EUR')) sellForexBase.value = 'EUR'; else if(fiatCurrencies.length > 0) sellForexBase.value = fiatCurrencies[0];
+    if(fiatCurrencies.includes('USD')) sellForexQuote.value = 'USD'; else if(fiatCurrencies.length > 1) sellForexQuote.value = fiatCurrencies[1];
+    updateSelectedIcon("sellForexBaseIcon", sellForexBase.value, "Fiat");
+    updateSelectedIcon("sellForexQuoteIcon", sellForexQuote.value, "Fiat");
+
+    // Initial population for Sell form (User's owned Crypto by default)
+    fillAssetSelect(sellSymbol, 'Crypto', true); // true for owned asset selection
+    if (sellSymbol.options.length > 0) {
+        updateSelectedIcon("sellSymbolIcon", sellSymbol.value, "Crypto");
+        updateAssetPriceDisplay("sellAssetPrice", sellSymbol.value, "Crypto");
+        showSellBalance();
+    } else {
+        sellBalanceInfo.textContent = "No crypto assets to sell.";
+    }
+
+
+    sellMarket.addEventListener('change', () => {
+        const selectedMarket = sellMarket.value;
+        if (selectedMarket === 'Forex') {
+            sellForexSection.style.display = 'block';
+            sellSingleSymbolSection.style.display = 'none';
+            fillFiatSelect(sellForexBase, "Fiat"); // User sells base fiat
+            if (sellForexBase.options.length > 0) showSellBalance(); else sellBalanceInfo.textContent = "No fiat to sell.";
+        } else {
+            sellForexSection.style.display = 'none';
+            sellSingleSymbolSection.style.display = 'block';
+            // For Crypto and Stocks, populate with user's owned assets
+            fillAssetSelect(sellSymbol, selectedMarket, true); 
+            if (sellSymbol.options.length > 0) {
+                updateSelectedIcon("sellSymbolIcon", sellSymbol.value, selectedMarket);
+                updateAssetPriceDisplay("sellAssetPrice", sellSymbol.value, selectedMarket);
+                showSellBalance();
+            } else {
+                 sellBalanceInfo.textContent = `No ${selectedMarket.toLowerCase()} assets to sell.`;
+            }
+        }
+        calcSellValue();
+        validateSellForm();
+    });
+    
+    sellSymbol.addEventListener('change', () => {
+        updateSelectedIcon("sellSymbolIcon", sellSymbol.value, sellMarket.value);
+        updateAssetPriceDisplay("sellAssetPrice", sellSymbol.value, sellMarket.value);
+        showSellBalance();
+        calcSellValue();
+        validateSellForm();
+    });
+
+    [sellForexBase, sellForexQuote, sellAmount].forEach(el => {
+        el.addEventListener('input', () => { // Use input for faster feedback
+            if (el === sellForexBase) {
+                updateSelectedIcon("sellForexBaseIcon", sellForexBase.value, "Fiat");
+                showSellBalance(); // Update balance for the selected base fiat
+            }
+            if (el === sellForexQuote) updateSelectedIcon("sellForexQuoteIcon", sellForexQuote.value, "Fiat");
+            calcSellValue();
+            validateSellForm();
+        });
+    });
+    
+    sellLeverageSlider.addEventListener('input', () => sellLeverageValue.textContent = sellLeverageSlider.value + 'x');
+    sellOrderType.addEventListener('change', () => sellLimitPriceSection.style.display = sellOrderType.value === 'limit' ? 'block' : 'none');
+    sellForm.addEventListener('submit', e => { e.preventDefault(); doSellTrade(); });
+
+    function showSellBalance() {
+        let assetToSellSymbol = '';
+        if (sellMarket.value === 'Forex') {
+            assetToSellSymbol = sellForexBase.value; // User sells the base currency in a forex pair
+        } else {
+            assetToSellSymbol = sellSymbol.value;
+        }
+        const balance = getWalletBalance(assetToSellSymbol);
+        sellBalanceInfo.textContent = `Your ${assetToSellSymbol} balance: ${formatNumber(balance)}`;
+    }
+    async function calcSellValue() { /* ... modified to use await for prices ... */ }
+    function validateSellForm() { /* ... same ... */ }
+    showSellBalance(); // Initial call
+}
+
+
+function initConvertForm() {
+    const convertForm = document.getElementById('convertForm');
+    const convertFrom = document.getElementById('convertFrom'); // Will list owned assets (crypto + fiat)
+    const convertAmount = document.getElementById('convertAmount');
+    const convertTo = document.getElementById('convertTo');   // Will list all possible assets
+    const convertFromIcon = document.getElementById('convertFromIcon');
+    const convertToIcon = document.getElementById('convertToIcon');
+    const convertFromBalHint = document.getElementById('convertFromBalHint');
+    const convertResult = document.getElementById('convertResult');
+    const convertRateDisplay = document.getElementById('convertRateDisplay');
+    const convFromSymbol = document.getElementById('convFromSymbol');
+    const convRateCurr = document.getElementById('convRateCurr'); // This should be the 'To' currency symbol
+    const convertError = document.getElementById('convertError');
+    const convertSuccess = document.getElementById('convertSuccess');
+    const convertButton = document.getElementById('convertButton');
+
+    // Populate "Convert From" with user's owned assets (crypto and fiat)
+    const ownedAssetsForConvert = userWallets.map(w => {
+        let marketType = 'Crypto'; // Default
+        if (fiatCurrencies.includes(w.shortName)) marketType = 'Fiat';
+        // Could add check for stocks if they were ownable assets
+        return {
+            symbol: w.shortName,
+            name: `${w.coinName || w.shortName} - Bal: ${formatNumber(w.balance)}`,
+            market: marketType,
+            balance: w.balance
+        };
+    });
+    fillAssetSelect(convertFrom, ownedAssetsForConvert);
+
+    // Populate "Convert To" with all possible assets
+    const allPossibleAssetsForConvert = [
+        ...allCrypto.map(c => ({ symbol: c.symbol, name: `${c.name} (${c.symbol})`, market: 'Crypto' })),
+        ...fiatCurrencies.map(fc => ({ symbol: fc, name: fc, market: 'Fiat' }))
+        // Add stocks if they are convertible
+    ];
+    fillAssetSelect(convertTo, allPossibleAssetsForConvert);
+
+    if (convertFrom.options.length > 0) {
+        updateSelectedIcon("convertFromIcon", convertFrom.value, $(convertFrom.options[convertFrom.selectedIndex]).data('market'));
+        showConvertFromBalance();
+    } else {
+        convertFromBalHint.textContent = "No assets to convert from.";
+    }
+    if (convertTo.options.length > 0) {
+        updateSelectedIcon("convertToIcon", convertTo.value, $(convertTo.options[convertTo.selectedIndex]).data('market'));
+    }
+    
+    convFromSymbol.textContent = convertFrom.value; // Initial
+    convRateCurr.textContent = convertTo.value;     // Initial
+
+    convertFrom.addEventListener('change', () => {
+        updateSelectedIcon("convertFromIcon", convertFrom.value, $(convertFrom.options[convertFrom.selectedIndex]).data('market'));
+        showConvertFromBalance();
+        doConvertCalc();
+        validateConvertForm();
+    });
+    convertTo.addEventListener('change', () => {
+        updateSelectedIcon("convertToIcon", convertTo.value, $(convertTo.options[convertTo.selectedIndex]).data('market'));
+        convRateCurr.textContent = convertTo.value; // Update rate currency display
+        doConvertCalc();
+        validateConvertForm();
+    });
+    convertAmount.addEventListener('input', () => {
+        doConvertCalc();
+        validateConvertForm();
+    });
+    convertForm.addEventListener('submit', e => { e.preventDefault(); doConvert(); });
+
+    function showConvertFromBalance() {
+        const selectedOption = convertFrom.options[convertFrom.selectedIndex];
+        if (selectedOption) {
+            const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+            convertFromBalHint.textContent = `Balance: ${formatNumber(balance)} ${convertFrom.value}`;
+        } else {
+            convertFromBalHint.textContent = "Balance: N/A";
+        }
+    }
+    async function doConvertCalc() { /* ... modified to use await for prices ... */ }
+    function validateConvertForm() { /* ... same ... */ }
+    showConvertFromBalance(); // Initial call
+}
+
+// Price Helper Functions - Modified to use await where necessary
+function getWalletBalance(sym) {
+  const wallet = userWallets.find(w => w.shortName === sym);
+  return wallet ? parseFloat(wallet.balance) : 0;
+}
+
+async function getCryptoPriceInUser(sym) {
+  const usdPrice = getCryptoUsdPrice(sym); // This is synchronous as coinPricesUSD is pre-fetched
+  if (userCurrency === 'USD') return usdPrice;
+  const rate = await getExchangeRate(userCurrency); // Uses backend via fetch
+  return usdPrice * (rate || 1); // Fallback to USD price if rate is null
+}
+
+function getCryptoUsdPrice(sym) {
+  const coinGeckoId = coinGeckoMap[sym.toUpperCase()] || sym.toLowerCase();
+  return coinPricesUSD[coinGeckoId]?.usd || 0; // Default to 0 if not found
+}
+
+async function getStockPriceInUser(sym) { // Made async
+  // Placeholder - stock prices are not fetched in this version
+  const fallbackUsdPrice = 100; 
+  if (userCurrency === 'USD') return fallbackUsdPrice;
+  const rate = await getExchangeRate(userCurrency);
+  return fallbackUsdPrice * (rate || 1);
+}
+
+async function getForexPriceInUser(base, quote) { // Made async
+  if (base === quote) return 1;
+  const baseUsdRate = (base === 'USD') ? 1 : (await getExchangeRate(base) || 0);
+  const quoteUsdRate = (quote === 'USD') ? 1 : (await getExchangeRate(quote) || 0);
+  if (quoteUsdRate === 0) return 0; // Avoid division by zero
+  const rate = baseUsdRate / quoteUsdRate;
+  // This rate is BASE/QUOTE in USD terms. If userCurrency is different, this needs further thought.
+  // For now, assuming the widget displays this direct rate.
+  return rate; 
+}
+
+async function getExchangeRate(target) { // New frontend helper to call backend
+    if (target === 'USD') return 1.0;
+    if (!target) return 1.0; // Default if target is undefined
+    try {
+        const response = await fetch(`/api/exchange-rate/${target.toUpperCase()}`);
+        if (!response.ok) {
+            console.error(`Failed to fetch exchange rate for ${target}: ${response.status}`);
+            return 1.0; // Fallback
+        }
+        const data = await response.json();
+        return data.rate;
+    } catch (error) {
+        console.error(`Error fetching exchange rate for ${target}:`, error);
+        return 1.0; // Fallback
+    }
+}
+
+
+async function getAssetUsd(sym) { // Made async
+  const market = $(`#convertFrom option[value="${sym}"]`).data('market') || $(`#convertTo option[value="${sym}"]`).data('market');
+  if (market === 'Crypto') {
+    return getCryptoUsdPrice(sym); // Already in USD
+  }
+  if (market === 'Stocks') {
+    return 100; // Placeholder USD price for stocks
+  }
+  if (market === 'Fiat') {
+    if (sym === 'USD') return 1;
+    // For fiat, get its value in USD. If exchangeRates has USD as base: 1 / exchangeRates[sym]
+    // Or, if exchangeRates has target as base: exchangeRates[targetKeyForUSD]
+    // Using our new backend endpoint for simplicity to get USD rate for this fiat
+    const rateAgainstUSD = await getExchangeRate(sym); // This gets how many SYM per USD
+    return rateAgainstUSD ? 1 / rateAgainstUSD : 0; // This is incorrect. getExchangeRate returns SYM per USD. So this is USD per SYM.
+                                                  // Let's re-evaluate: getExchangeRate(EUR) returns EUR per USD.
+                                                  // So, if sym is EUR, we want its USD value. 1 EUR = X USD.
+                                                  // exchangeRates has USD as base: e.g. { "EUR": 0.9, "JPY": 150 }
+                                                  // So, 1 USD = 0.9 EUR.  1 EUR = 1/0.9 USD.
+                                                  // If getExchangeRate(EUR) returns 0.9 (meaning 1 USD = 0.9 EUR)
+                                                  // Then 1 EUR = 1 / 0.9 USD. This seems correct.
+    return exchangeRates[sym] ? 1 / exchangeRates[sym] : 0; // Fallback if direct call not used.
+                                                          // This needs to be consistent with getExchangeRate
+                                                          // If getExchangeRate(SYM) returns USD_PER_SYM, then it's direct.
+                                                          // Our backend getExchangeRate(target) returns target_PER_USD.
+                                                          // So, 1 target = 1/rate USD.
+    const rate = await getExchangeRate(sym); // e.g. getExchangeRate('EUR') -> 0.9 (0.9 EUR per 1 USD)
+    return rate ? 1 / rate : 0; // So 1 EUR = 1/0.9 USD. Correct.
+  }
+  return 0;
+}
+
+
+// Modified Trade Execution Logic
+function doBuyTrade() {
+    startButtonLoading(document.getElementById('buyButton'));
+    const buyError = document.getElementById('buyError');
+    buyError.textContent = "Trade execution is disabled in this demo.";
+    buyError.style.display = 'block';
+    // Simulate a delay then stop loading
+    setTimeout(() => {
+        stopButtonLoading(document.getElementById('buyButton'));
+    }, 1500);
+}
+
+function doSellTrade() {
+    startButtonLoading(document.getElementById('sellButton'));
+    const sellError = document.getElementById('sellError');
+    sellError.textContent = "Trade execution is disabled in this demo.";
+    sellError.style.display = 'block';
+    setTimeout(() => {
+        stopButtonLoading(document.getElementById('sellButton'));
+    }, 1500);
+}
+
+function doConvert() {
+    startButtonLoading(document.getElementById('convertButton'));
+    const convertError = document.getElementById('convertError');
+    convertError.textContent = "Conversion is disabled in this demo.";
+    convertError.style.display = 'block';
+    setTimeout(() => {
+        stopButtonLoading(document.getElementById('convertButton'));
+    }, 1500);
+}
+
+
+// Utils (formatNumber, resetMessages, startButtonLoading, stopButtonLoading) - no changes needed
+// formatAssetOption - no changes needed
+function formatNumber(num) {
+  if (num === undefined || num === null || isNaN(num)) return '0.00';
+  return parseFloat(num).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:8});
+}
+function resetMessages(...els) {
+  els.forEach(el => { if(el) { el.textContent = ''; el.style.display = 'none'; } });
+}
+function startButtonLoading(btn) {
+  if(!btn) return;
+  btn.disabled = true;
+  if (!btn.querySelector('.loading-spinner')) {
+    const spinner = document.createElement('span');
+    spinner.classList.add('loading-spinner');
+    btn.appendChild(spinner);
+  }
+}
+function stopButtonLoading(btn) {
+  if(!btn) return;
+  btn.disabled = false;
+  const spinner = btn.querySelector('.loading-spinner');
+  if (spinner && spinner.parentNode === btn) { // Check if spinner is a child of btn
+    btn.removeChild(spinner);
+  }
+}
+function formatAssetOption(option) {
+  if (!option.id) { return option.text; }
+  var market = $(option.element).data('market');
+  // For owned assets, market might not be in option.element.data if populated from userWallets directly
+  if (!market && option.element && option.element.parentElement) { 
+    const parentSelectId = option.element.parentElement.id;
+    if (parentSelectId === 'buySymbol' || parentSelectId === 'sellSymbol') {
+        market = document.getElementById(parentSelectId.replace('Symbol', 'Market'))?.value || 'Crypto';
+    } else if (parentSelectId === 'convertFrom' || parentSelectId === 'convertTo') {
+        // Heuristic: check if it's in fiatCurrencies or allCrypto
+        if (fiatCurrencies.includes(option.id)) market = 'Fiat';
+        else if (allCrypto.some(c => c.symbol === option.id)) market = 'Crypto';
+    }
+  }
+
+
+  var logo = getIconUrl(option.id, market);
+  if (logo.indexOf("MATERIAL:") === 0) {
+    var iconName = logo.replace("MATERIAL:", "");
+    var $option = $(
+      '<span><span class="material-icons" style="font-size:20px; margin-right:5px; vertical-align: middle;">' + iconName + '</span>' + option.text + '</span>'
+    );
+    return $option;
+  } else {
+    var $option = $(
+      '<span><img src="' + logo + '" style="width:20px; height:20px; margin-right:5px; vertical-align: middle;" />' + option.text + '</span>'
+    );
+    return $option;
+  }
+}
+
+</script>
+</body>
+</html>

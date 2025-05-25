@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Markets</title>
+  <style>
+    /* Dark Theme Styles */
+    body { 
+      margin: 0; padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #04080B; 
+      color: #E0E6ED;
+    }
+
+    .container { 
+      max-width: 1200px;
+      margin: 0 auto; 
+      background-color: #0A0E11;
+      padding: 20px;
+      border-radius: 6px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .controls input[type="text"],
+    .controls select {
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 4px;
+      background-color: #1A1E21; 
+      color: #E0E6ED; 
+      border: 1px solid #2A2E31; 
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #0A0E11; 
+    }
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid #1F2326; 
+    }
+    th {
+      background-color: #1A1E21; 
+      color: #E0E6ED; 
+      position: sticky;
+      top: 0; 
+      z-index: 1;
+      border-bottom: 1px solid #2A2E31; 
+    }
+    tr:hover {
+      background-color: #12161A; 
+    }
+    .star {
+      cursor: pointer;
+      font-size: 18px;
+      color: #4A4E51; 
+    }
+    .star.filled {
+      color: #08a88a; 
+    }
+    .trade-button {
+      padding: 8px 12px;
+      background-color: #08a88a; 
+      color: #FFFFFF; 
+      border: none;
+      border-radius: 4px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .trade-button:hover {
+      background-color: #079779; 
+    }
+
+    @media (max-width: 768px) {
+      th, td {
+        padding: 8px;
+        font-size: 14px;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      .controls > * {
+        width: 100%; 
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container"> 
+    <div class="controls">
+      <input type="text" id="searchBar" placeholder="Search assets..." />
+      <select id="filterSelect">
+        <option value="All">All Types</option>
+        <option value="Crypto">Crypto</option>
+        <option value="Fiat">Fiat</option>
+        <option value="Stocks">Stocks</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>★</th>
+          <th>Asset</th>
+          <th>Type</th>
+          <th id="price-table-header">Current Price (USD)</th> <!-- Default, will be updated by JS -->
+          <th>In Your Wallet</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="assetsTableBody">
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let userWallets = [];      
+    let coinPricesUSD = {};    
+    let exchangeRates = {};    // Stores TARGET_CURRENCY_PER_USD rates, e.g., { EUR: 0.93, GBP: 0.80 }
+    let userCurrency = 'USD';  
+
+    const assets = [
+      { symbol: 'AAPL',  name: 'Apple',                    type: 'Stocks' },
+      { symbol: 'AAVE',  name: 'AAVE',                     type: 'Crypto' },
+      { symbol: 'ABT',   name: 'Abbot Labs',               type: 'Stocks' },
+      { symbol: 'ADA',   name: 'Cardano',                  type: 'Crypto' },
+      { symbol: 'ADBE',  name: 'Adobe',                    type: 'Stocks' },
+      { symbol: 'ALGO',  name: 'Algorand',                 type: 'Crypto' },
+      { symbol: 'AMZN',  name: 'Amazon',                   type: 'Stocks' },
+      { symbol: 'AUD',   name: 'Australian Dollar',        type: 'Fiat'   },
+      { symbol: 'AVAX',  name: 'Avalanche',                type: 'Crypto' },
+      { symbol: 'AXS',   name: 'Axie Infinity',            type: 'Crypto' },
+      { symbol: 'BABA',  name: 'Alibaba',                  type: 'Stocks' },
+      { symbol: 'BAC',   name: 'Bank of America',          type: 'Stocks' },
+      { symbol: 'BCH',   name: 'Bitcoin Cash',             type: 'Crypto' },
+      { symbol: 'BTC',   name: 'Bitcoin',                  type: 'Crypto' },
+      { symbol: 'CAD',   name: 'Canadian Dollar',          type: 'Fiat'   },
+      { symbol: 'CHF',   name: 'Swiss Franc',              type: 'Fiat'   },
+      { symbol: 'CRO',   name: 'Cronos',                   type: 'Crypto' },
+      { symbol: 'DAI',   name: 'Dai',                      type: 'Crypto' },
+      { symbol: 'DOGE',  name: 'Dogecoin',                 type: 'Crypto' },
+      { symbol: 'DOT',   name: 'Polkadot',                 type: 'Crypto' },
+      { symbol: 'ETH',   name: 'Ethereum',                 type: 'Crypto' },
+      { symbol: 'EUR',   name: 'Euro',                     type: 'Fiat'   },
+      { symbol: 'FB',    name: 'Meta Platforms Inc',       type: 'Stocks' }, // Note: FB is now META, but keeping for example consistency
+      { symbol: 'GBP',   name: 'British Pound',            type: 'Fiat'   },
+      { symbol: 'GOOGL', name: 'Google',                   type: 'Stocks' },
+      { symbol: 'LTC',   name: 'Litecoin',                 type: 'Crypto' },
+      { symbol: 'MATIC', name: 'Polygon',                  type: 'Crypto' },
+      { symbol: 'MSFT',  name: 'Microsoft',                type: 'Stocks' },
+      { symbol: 'PEPE',  name: 'Pepe',                     type: 'Crypto' },
+      { symbol: 'SOL',   name: 'Solana',                   type: 'Crypto' },
+      { symbol: 'TSLA',  name: 'Tesla',                    type: 'Stocks' },
+      { symbol: 'UNI',   name: 'Uniswap',                  type: 'Crypto' },
+      { symbol: 'USD',   name: 'United States Dollar',     type: 'Fiat'   },
+      { symbol: 'USDC',  name: 'USD Coin',                 type: 'Crypto' },
+      { symbol: 'USDT',  name: 'Tether',                   type: 'Crypto' },
+      { symbol: 'XRP',   name: 'Ripple',                   type: 'Crypto' }
+    ];
+
+    const coinGeckoMap = {
+      BTC: 'bitcoin', ETH: 'ethereum', USDC: 'usd-coin', USDT: 'tether', BNB: 'binancecoin',
+      ADA: 'cardano', DOGE: 'dogecoin', SOL: 'solana', AVAX: 'avalanche-2', SHIB: 'shiba-inu',
+      LTC: 'litecoin', TRX: 'tron', MATIC: 'matic-network', PEPE: 'pepe', XRP: 'ripple',
+      CRO: 'crypto-com-chain', DAI: 'dai', UNI: 'uniswap', AAVE: 'aave', ALGO: 'algorand',
+      BCH: 'bitcoin-cash', AXS: 'axie-infinity'
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await checkAuth(); // Sets currentUser and userCurrency
+        await fetchCoinPrices(); // Fetches coinPricesUSD
+        await fetchUserExchangeRates(); // Fetches exchangeRates based on userCurrency
+        await fetchUserWallets();
+        
+        document.getElementById('searchBar').addEventListener('input', renderTable);
+        document.getElementById('filterSelect').addEventListener('change', renderTable);
+        renderTable();
+      } catch (error) {
+        console.error('Initialization error:', error);
+        const tbody = document.getElementById('assetsTableBody');
+        if(tbody) tbody.innerHTML = `<tr><td colspan="6">Error loading market data. Please ensure you are logged in and try again.</td></tr>`;
+      }
+    });
+
+    async function checkAuth() {
+      try {
+        const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!meRes.ok) {
+          if (typeof loadPage === 'function') loadPage('login.html'); 
+          else window.location.href = '/login.html';
+          throw new Error('Not logged in');
+        }
+        const meData = await meRes.json();
+        currentUser = meData.user;
+        userCurrency = currentUser.accountCurrency ? currentUser.accountCurrency.toUpperCase() : 'USD';
+        const priceTableHeader = document.getElementById('price-table-header');
+        if(priceTableHeader) priceTableHeader.textContent = `Current Price (${userCurrency})`;
+      } catch (e) {
+         currentUser = null; 
+         userCurrency = 'USD'; // Default if auth fails
+         console.error("Auth check failed:", e.message);
+         const priceTableHeader = document.getElementById('price-table-header');
+         if(priceTableHeader) priceTableHeader.textContent = `Current Price (USD)`; // Fallback header
+         // Do not redirect here if this page itself is loaded by loadPage, to avoid loops.
+         // The individual fetch functions will handle lack of currentUser.
+      }
+    }
+
+    async function fetchCoinPrices() {
+      try {
+        const res = await fetch('/api/coin-prices', { credentials: 'include' });
+        if (!res.ok) throw new Error(`Failed to fetch coin prices: ${res.status}`);
+        coinPricesUSD = await res.json(); 
+      } catch (err) {
+        console.error('Error fetching coin prices:', err); coinPricesUSD = {};
+      }
+    }
+
+    async function fetchUserExchangeRates() {
+        // Fetches rate for userCurrency against USD.
+        // If userCurrency is USD, sets rate to 1.0.
+        // Stores result in exchangeRates map, e.g., exchangeRates['EUR'] = 0.93 (meaning 1 USD = 0.93 EUR)
+        if (userCurrency === 'USD') {
+            exchangeRates['USD'] = 1.0;
+            return;
+        }
+        try {
+            const response = await fetch(`/api/exchange-rate/${userCurrency}`, {credentials: 'include'});
+            if (!response.ok) throw new Error('Rate not found for ' + userCurrency);
+            const data = await response.json();
+            exchangeRates[data.targetCurrency] = data.rate; // rate is Target per USD
+        } catch (error) {
+            console.error(`Error fetching exchange rate for ${userCurrency}:`, error);
+            exchangeRates[userCurrency] = 1.0; // Fallback to 1 if rate fetch fails, effectively treating as USD
+        }
+    }
+
+
+    async function fetchUserWallets() {
+      if (!currentUser || !currentUser.id) return;
+      try {
+        const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`Failed to fetch user wallets: ${res.status}`);
+        userWallets = await res.json(); 
+      } catch (err) {
+        console.error('Error fetching wallets:', err); userWallets = [];
+      }
+    }
+    
+    function getUsdPriceFromShortName(shortName) {
+      const key = guessCoinGeckoKey(shortName);
+      if (!coinPricesUSD[key] || !coinPricesUSD[key].usd) {
+        if (shortName === 'USD') return 1;
+        if (shortName === 'USDT') return 1; // Common stablecoins
+        if (shortName === 'USDC') return 1;
+        return 0; // Fallback for unknown crypto
+      }
+      return coinPricesUSD[key].usd;
+    }
+
+    function guessCoinGeckoKey(shortName) {
+      const upper = shortName.toUpperCase();
+      if (coinGeckoMap[upper]) return coinGeckoMap[upper];
+      return shortName.toLowerCase(); 
+    }
+
+    function renderTable() {
+      const searchQuery = document.getElementById('searchBar').value.toLowerCase();
+      const filterType = document.getElementById('filterSelect').value;
+      const starredSymbols = getStarredAssets();
+
+      let filtered = assets.filter(a => {
+        const matchesSearch = a.name.toLowerCase().includes(searchQuery) ||
+                              a.symbol.toLowerCase().includes(searchQuery);
+        const matchesFilter = (filterType === 'All') || (a.type === filterType);
+        return matchesSearch && matchesFilter;
+      });
+
+      filtered.sort((a, b) => {
+        const aStar = starredSymbols.includes(a.symbol);
+        const bStar = starredSymbols.includes(b.symbol);
+        if (aStar && !bStar) return -1;
+        if (!aStar && bStar) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      const tbody = document.getElementById('assetsTableBody');
+      tbody.innerHTML = '';
+
+      for (let asset of filtered) {
+        const tr = document.createElement('tr');
+        const starTd = document.createElement('td');
+        const starIcon = document.createElement('span');
+        starIcon.textContent = '★';
+        starIcon.classList.add('star');
+        if (starredSymbols.includes(asset.symbol)) starIcon.classList.add('filled');
+        starIcon.onclick = () => toggleStar(asset.symbol);
+        starTd.appendChild(starIcon);
+        tr.appendChild(starTd);
+
+        ['name', 'type'].forEach(key => {
+            const td = document.createElement('td');
+            td.textContent = asset[key];
+            tr.appendChild(td);
+        });
+        
+        let priceInUserCurrency = 0;
+        const assetSymbolUpper = asset.symbol.toUpperCase();
+
+        if (asset.type === 'Crypto') {
+            const usdPrice = getUsdPriceFromShortName(asset.symbol);
+            if (userCurrency === 'USD') {
+                priceInUserCurrency = usdPrice;
+            } else if (exchangeRates[userCurrency]) {
+                priceInUserCurrency = usdPrice * exchangeRates[userCurrency];
+            } else { // Fallback if rate for userCurrency is missing
+                priceInUserCurrency = usdPrice; // Show in USD
+            }
+        } else if (asset.type === 'Fiat') {
+            if (assetSymbolUpper === userCurrency) {
+                priceInUserCurrency = 1;
+            } else if (assetSymbolUpper === 'USD') { // Converting USD to userCurrency
+                priceInUserCurrency = exchangeRates[userCurrency] || 1; // 1 USD = X userCurrency
+            } else { // Other fiat to userCurrency (e.g. EUR to GBP)
+                // Step 1: Convert asset to USD
+                const rateAssetToUsd = exchangeRates[assetSymbolUpper] ? (1 / exchangeRates[assetSymbolUpper]) : 0; // Price of 1 unit of Asset in USD
+                if (userCurrency === 'USD') {
+                    priceInUserCurrency = rateAssetToUsd;
+                } else if (exchangeRates[userCurrency]) {
+                    priceInUserCurrency = rateAssetToUsd * exchangeRates[userCurrency];
+                }
+            }
+        } // Stocks remain 0 or placeholder
+
+        const priceTd = document.createElement('td');
+        priceTd.textContent = `${formatNumber(priceInUserCurrency, asset.type === 'Crypto' ? 6 : 2)} ${userCurrency}/${asset.symbol}`;
+        tr.appendChild(priceTd);
+
+        let userBalance = '0.00';
+        const foundWallet = userWallets.find(w => w.shortName.toUpperCase() === assetSymbolUpper);
+        if (foundWallet && foundWallet.balance) userBalance = formatNumber(foundWallet.balance, 8);
+        const walletTd = document.createElement('td');
+        walletTd.textContent = `${userBalance} ${asset.symbol}`;
+        tr.appendChild(walletTd);
+
+        const actionTd = document.createElement('td');
+        const tradeBtn = document.createElement('button');
+        tradeBtn.textContent = 'Trade';
+        tradeBtn.classList.add('trade-button');
+        tradeBtn.onclick = function() { 
+            if (typeof loadPage === 'function') {
+                loadPage(`pages/trade_full_content.html?symbol=${asset.symbol}&type=${asset.type}`);
+            } else {
+                console.error("loadPage function not defined. Navigation to trade page failed.");
+                alert("Error: Could not navigate to trade page.");
+            }
+        };
+        actionTd.appendChild(tradeBtn);
+        tr.appendChild(actionTd);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    function getStarredAssets() {
+      const name = 'starred_assets=';
+      const decoded = decodeURIComponent(document.cookie);
+      const parts = decoded.split(';');
+      for (let p of parts) {
+        const c = p.trim();
+        if (c.startsWith(name)) {
+          const value = c.substring(name.length);
+          return value ? value.split(',') : [];
+        }
+      }
+      return [];
+    }
+
+    function setStarredAssets(arr) {
+      const expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      document.cookie = `starred_assets=${arr.join(',')}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+    }
+
+    function toggleStar(symbol) {
+      let starred = getStarredAssets();
+      const index = starred.indexOf(symbol);
+      if (index > -1) {
+        starred.splice(index, 1);
+      } else {
+        starred.push(symbol);
+      }
+      setStarredAssets(starred);
+      renderTable();
+    }
+
+    function formatNumber(num, maxDecimals = 6) {
+      if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(2); 
+      const numFloat = parseFloat(num);
+      if (Math.abs(numFloat) < 0.01 && numFloat !== 0 && maxDecimals > 2) { // For small crypto values, show more precision
+          return numFloat.toFixed(maxDecimals);
+      }
+      return numFloat.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: maxDecimals 
+      });
+    }
+  </script>
+</body>
+</html>

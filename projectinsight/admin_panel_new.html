@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:hover {background-color: #f5f5f5;}
+    .button {
+      padding: 5px 10px;
+      margin: 2px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+    }
+    .button.edit, .button.review { /* Added .review */
+      background-color: #2196F3;
+    }
+    .button.delete {
+      background-color: #f44336;
+    }
+    .button.toggle-active { /* For Activate/Deactivate */
+        background-color: #ffc107; /* Yellow, adjust as needed */
+        color: black;
+    }
+    .button.close {
+      background-color: #555;
+    }
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 1; 
+      padding-top: 60px; 
+      left: 0;
+      top: 0;
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; 
+      background-color: rgba(0,0,0,0.4); 
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 600px; /* Added max-width for deposit review modal */
+      max-height: 90%; /* Increased max-height */
+      overflow-y: auto;
+    }
+    .close-modal {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-modal:hover,
+    .close-modal:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .form-group input, 
+    .form-group select, 
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc; /* Added default border */
+      border-radius: 4px; /* Added default radius */
+    }
+    .form-group textarea {
+        min-height: 80px; /* Specific for textarea */
+    }
+    .form-group button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .form-group button:hover {
+      background-color: #45a049;
+    }
+    .section-title {
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    /* Styles for readonly fields in modal */
+    .readonly-field {
+        background-color: #f9f9f9;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #eee;
+        margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Admin Panel</h1>
+
+  <!-- Users List -->
+  <h2>All Users</h2>
+  <table id="users-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Email</th>
+        <th>Country</th>
+        <th>Account Currency</th>
+        <th>Verification Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Users will be populated here -->
+    </tbody>
+  </table>
+
+  <!-- Deposit Review Section -->
+  <div class="section-title">Deposit Review</div>
+  <table id="pending-deposits-table">
+    <thead>
+      <tr>
+        <th>Deposit ID</th>
+        <th>User ID</th> <!-- Will fetch user email based on this -->
+        <th>Date</th>
+        <th>Reference</th>
+        <th>Method (Coin)</th>
+        <th>User Amount</th>
+        <th>Current Admin Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Pending deposits will be populated here by admin_panel_new.js -->
+    </tbody>
+  </table>
+
+  <!-- Withdrawal Review Section -->
+  <div class="section-title">Withdrawal Review</div>
+  <table id="pending-withdrawals-table">
+    <thead>
+      <tr>
+        <th>Withdrawal ID</th>
+        <th>User Email</th>
+        <th>Date</th>
+        <th>Reference</th>
+        <th>Method (Coin)</th>
+        <th>User Requested Amount</th>
+        <th>Current Admin Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Pending withdrawals will be populated here by admin_panel_new.js -->
+    </tbody>
+  </table>
+
+  <!-- Manage Subscription Plans Section -->
+  <div class="section-title">Manage Subscription Plans</div>
+  <button id="create-new-plan-btn" class="button" style="margin-bottom:15px;">Create New Subscription Plan</button>
+  <table id="subscription-plans-table">
+    <thead>
+      <tr>
+        <th>Plan ID</th>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Currency</th>
+        <th>Duration (Days)</th>
+        <th>Is Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Subscription plans will be populated here by admin_panel_new.js -->
+    </tbody>
+  </table>
+
+  <!-- Manage Signal Plans Section -->
+  <div class="section-title">Manage Signal Plans</div>
+  <button id="create-new-signal-plan-btn" class="button" style="margin-bottom:15px;">Create New Signal Plan</button>
+  <table id="signal-plans-table">
+    <thead>
+      <tr>
+        <th>Plan ID</th>
+        <th>Name</th>
+        <th>Min Deposit</th>
+        <th>Max Deposit</th>
+        <th>Currency</th>
+        <th>Performance</th>
+        <th>Is Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Signal plans will be populated here by admin_panel_new.js -->
+    </tbody>
+  </table>
+
+  <!-- Manage Stakeable Coins Section -->
+  <div class="section-title">Manage Stakeable Coins</div>
+  <button id="add-new-stakeable-coin-btn" class="button" style="margin-bottom:15px;">Add New Stakeable Coin</button>
+  <table id="stakeable-coins-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Short Name</th>
+        <th>ROI (%)</th>
+        <th>ROI Period</th>
+        <th>Min Stake</th>
+        <th>Lockup (Days)</th>
+        <th>Is Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Stakeable coins will be populated here by admin_panel_new.js -->
+    </tbody>
+  </table>
+
+  <!-- Manage Copy Traders Section -->
+  <div class="section-title">Manage Copy Traders</div>
+  <button id="add-new-copy-trader-btn" class="button" style="margin-bottom:15px;">Add New Copy Trader</button>
+  <table id="copy-traders-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Performance Metric (Demo)</th>
+        <th>Is Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Copy traders will be populated here by admin_panel_new.js -->
+    </tbody>
+  </table>
+
+
+  <!-- User Details -->
+  <div id="user-details" style="display: none;">
+    <h2>User Details</h2>
+    <button class="button close" id="close-user-details">Close</button>
+    <div id="user-info">
+      <!-- User info will be displayed here -->
+    </div>
+  </div>
+
+  <!-- Edit Modal (will be repurposed for Deposit/Withdrawal Review and Plan Edit/Create) -->
+  <div id="edit-modal" class="modal">
+    <div class="modal-content" id="edit-modal-content"> 
+      <span class="close-modal" id="close-edit-modal">&times;</span>
+      <h2 id="edit-modal-title">Edit Entry</h2> 
+      <form id="edit-form">
+        <div id="edit-form-fields">
+          <!-- Dynamic form fields will be inserted here by JS -->
+        </div>
+        <button type="submit" id="edit-form-submit-button">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Include the new admin_panel_new.js script -->
+  <script src="admin_panel_new.js"></script>
+</body>
+</html>

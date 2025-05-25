@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stake Crypto</title>
+    <style>
+        /* Basic dark theme styling - can be expanded or use global_theme.css classes */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #04080B; 
+            color: #E0E6ED;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .content-grid {
+            background-color: #0A0E11;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+            max-width: 1200px; /* Max width for the content */
+            margin: auto; /* Center it */
+        }
+        h2, h3 {
+            color: #E0E6ED;
+            border-bottom: 1px solid #2A2E31;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .user-balances-section, .available-stakes-section, .my-stakes-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #1A1E21; 
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+        }
+        .user-balances-section p {
+            margin: 5px 0;
+            font-size: 1em;
+        }
+        .user-balances-section strong {
+            color: #08a88a;
+        }
+        .stakeable-coins-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Slightly wider cards */
+            gap: 20px;
+        }
+        .stake-card {
+            background-color: #0A0E11;
+            border: 1px solid #2A2E31;
+            border-radius: 5px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .stake-card .coin-icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+            border-radius: 50%; /* Circular icons */
+            object-fit: cover; 
+            background-color: #2A2E31; /* Placeholder if no icon_url */
+            align-self: center;
+        }
+        .stake-card h4 {
+            color: #1e90ff; 
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        .stake-card p {
+            font-size: 0.9em;
+            color: #A0A6AD;
+            margin-bottom: 8px;
+        }
+        .stake-card .details {
+            flex-grow: 1;
+            margin-bottom:15px;
+        }
+         .stake-card .details strong {
+            color: #E0E6ED;
+        }
+        .stake-card input[type="number"] {
+            width: 100%; 
+            padding: 8px;
+            margin-bottom: 10px;
+            background-color: #1A1E21;
+            color: #E0E6ED;
+            border: 1px solid #2A2E31;
+            border-radius: 4px;
+            font-size: 0.95em;
+            box-sizing: border-box;
+        }
+        .stake-card .stake-now-btn {
+            padding: 10px 15px;
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            display: block;
+            width: 100%;
+            margin-top: auto; 
+        }
+        .stake-card .stake-now-btn:hover:not(:disabled) {
+            background-color: #187bcd;
+        }
+         .stake-card .stake-now-btn:disabled {
+            background-color: #2A2E31;
+            color: #555;
+            cursor: not-allowed;
+        }
+        .stakes-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .stakes-table th, .stakes-table td {
+            border: 1px solid #2A2E31;
+            padding: 10px;
+            text-align: left;
+        }
+        .stakes-table th {
+            background-color: #1A1E21;
+        }
+        .status-active { color: #4caf50; } /* Green for active stakes */
+        .status-completed { color: #08a88a; } /* Teal for completed */
+        .status-unlocked { color: #ffc107; } /* Amber for unlocked/claimable */
+        
+        #statusMessage, #conversionPromptStaking {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            display: none; 
+        }
+        #statusMessage.success, #conversionPromptStaking.info {
+            background-color: rgba(76, 175, 80, 0.1); 
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+        #statusMessage.error {
+            background-color: rgba(244, 67, 54, 0.1); 
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+        #conversionPromptStaking a {
+            color: #1e90ff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-grid">
+        <h2>Stake Your Crypto</h2>
+
+        <div class="user-balances-section">
+            <h3>Your Relevant Balances</h3>
+            <div id="staking-currency-balances">
+                <p style="color: #A0A6AD;">Loading balances...</p>
+            </div>
+        </div>
+
+        <div class="available-stakes-section">
+            <h3>Available Staking Options</h3>
+            <div id="stakeable-coins-container" class="stakeable-coins-container">
+                <p id="stakes-loading-message" style="color: #A0A6AD;">Loading staking options...</p>
+            </div>
+        </div>
+        
+        <div id="conversionPromptStaking" class="info" style="display:none;">
+            Your balance in the required currency is insufficient for the desired stake amount. 
+            Please <a onclick="if(typeof loadPage === 'function') loadPage('pages/convert_content.html'); else console.error('loadPage not defined');">visit the Convert Page</a> to convert funds.
+        </div>
+        <div id="statusMessage" style="display: none;"></div>
+
+
+        <div class="my-stakes-section">
+            <h3>My Stakes</h3>
+            <div style="overflow-x: auto;">
+                <table id="my-stakes-table" class="stakes-table">
+                    <thead>
+                        <tr>
+                            <th>Coin Staked</th>
+                            <th>Amount Staked</th>
+                            <th>Start Date</th>
+                            <th>End Date (Unlock)</th>
+                            <th>Expected ROI</th>
+                            <th>Status</th>
+                            <!-- Optional: Action button for 'unstake' if applicable later -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" style="text-align:center; color: #A0A6AD;">Loading your stakes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let userWallets = []; 
+        let userAccountCurrency = 'USD'; // Default, will be updated
+
+        const stakeableCoinsContainer = document.getElementById('stakeable-coins-container');
+        const stakesLoadingMessage = document.getElementById('stakes-loading-message');
+        const myStakesTableBody = document.querySelector('#my-stakes-table tbody');
+        const stakingCurrencyBalancesDisplay = document.getElementById('staking-currency-balances');
+        const statusMessageDisplay = document.getElementById('statusMessage');
+        const conversionPrompt = document.getElementById('conversionPromptStaking');
+        
+        // --- Utility Functions ---
+        function formatNumber(num, decimals = 2) {
+            if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(decimals);
+            return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 8 });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+        
+        function getIconHtml(iconUrl, altText) {
+            if (iconUrl) {
+                return `<img src="${iconUrl}" alt="${altText}" class="coin-icon">`;
+            }
+            return `<div class="coin-icon" style="display: flex; align-items: center; justify-content: center; font-size: 1.2em;">${altText.substring(0,1)}</div>`; // Fallback to initial
+        }
+
+
+        function showStatusMessage(message, isError) {
+            statusMessageDisplay.textContent = message;
+            statusMessageDisplay.className = isError ? 'error' : 'success';
+            statusMessageDisplay.style.display = 'block';
+            conversionPrompt.style.display = 'none'; // Hide conversion prompt when a new status message appears
+            setTimeout(() => {
+                statusMessageDisplay.style.display = 'none';
+            }, 5000);
+        }
+
+        // --- Data Fetching ---
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!res.ok) { 
+                    if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                    throw new Error('Not authenticated'); 
+                }
+                const data = await res.json();
+                currentUser = data.user;
+                userAccountCurrency = currentUser.accountCurrency || 'USD';
+            } catch (e) { 
+                currentUser = null; userAccountCurrency = 'USD';
+                if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                throw e;
+            }
+        }
+
+        async function fetchUserWallets() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+                userWallets = await res.json();
+            } catch (e) { console.error("Failed to fetch user wallets", e); userWallets = []; }
+        }
+
+        function displayRelevantBalances(stakeableCoinShortNames = new Set()) {
+            if (!stakingCurrencyBalancesDisplay) return;
+            stakingCurrencyBalancesDisplay.innerHTML = ''; 
+
+            if (stakeableCoinShortNames.size === 0 && userWallets.length > 0) {
+                 // If no specific coins for staking, show all user wallets with balance
+                userWallets.forEach(wallet => {
+                    if(parseFloat(wallet.balance) > 0) {
+                        const p = document.createElement('p');
+                        p.innerHTML = `${wallet.shortName} Balance: <strong style="color: #08a88a;">${formatNumber(wallet.balance, 8)}</strong>`;
+                        stakingCurrencyBalancesDisplay.appendChild(p);
+                    }
+                });
+                 if (stakingCurrencyBalancesDisplay.innerHTML === '') {
+                     stakingCurrencyBalancesDisplay.innerHTML = '<p style="color: #A0A6AD;">No funds available in wallets for staking.</p>';
+                 }
+
+            } else if (stakeableCoinShortNames.size > 0) {
+                stakeableCoinShortNames.forEach(currency => {
+                    const wallet = userWallets.find(w => w.shortName.toUpperCase() === currency.toUpperCase());
+                    const balance = wallet ? parseFloat(wallet.balance) : 0;
+                    const p = document.createElement('p');
+                    p.innerHTML = `${currency} Balance: <strong style="color: #08a88a;">${formatNumber(balance, 8)}</strong>`;
+                    stakingCurrencyBalancesDisplay.appendChild(p);
+                });
+            } else {
+                 stakingCurrencyBalancesDisplay.innerHTML = '<p style="color: #A0A6AD;">No stakeable coins found to display balances.</p>';
+            }
+        }
+        
+        async function fetchAndDisplayStakeableCoins() {
+            if (!stakeableCoinsContainer || !stakesLoadingMessage) return;
+            stakesLoadingMessage.style.display = 'block';
+            stakeableCoinsContainer.innerHTML = ''; 
+            
+            try {
+                const response = await fetch('/api/stakeable-coins'); 
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const coins = await response.json();
+
+                if (coins.length === 0) {
+                    stakeableCoinsContainer.innerHTML = '<p style="color: #A0A6AD;">No staking options currently available.</p>';
+                } else {
+                    const stakeableCoinCurrencies = new Set();
+                    coins.forEach(coin => stakeableCoinCurrencies.add(coin.short_name.toUpperCase()));
+                    displayRelevantBalances(stakeableCoinCurrencies); // Update balances for these specific currencies
+
+                    coins.forEach(coin => {
+                        const card = document.createElement('div');
+                        card.className = 'stake-card';
+                        card.innerHTML = `
+                            ${getIconHtml(coin.icon_url, coin.short_name)}
+                            <h4>${coin.name} (${coin.short_name})</h4>
+                            <div class="details">
+                                <p>ROI: <strong>${formatNumber(coin.roi_percentage, 2)}%</strong> (${coin.roi_period || 'N/A'})</p>
+                                <p>Min Stake: <strong>${formatNumber(coin.min_stake, 8)} ${coin.short_name}</strong></p>
+                                <p>Lockup: <strong>${coin.lockup_days > 0 ? coin.lockup_days + ' days' : 'Flexible (No Lockup)'}</strong></p>
+                            </div>
+                            <input type="number" class="stake-amount-input" placeholder="Amount in ${coin.short_name}" step="any" min="${coin.min_stake > 0 ? coin.min_stake : '0.00000001'}">
+                            <button class="stake-now-btn" data-coin-id="${coin.id}" data-coin-short-name="${coin.short_name}" data-min-stake="${coin.min_stake}">Stake Now</button>
+                        `;
+                        stakeableCoinsContainer.appendChild(card);
+                    });
+                    document.querySelectorAll('.stake-now-btn').forEach(button => {
+                        button.addEventListener('click', handleStakeNow);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching stakeable coins:', error);
+                stakeableCoinsContainer.innerHTML = `<p style="color: #ff6b6b;">Error loading staking options: ${error.message}</p>`;
+            } finally {
+                stakesLoadingMessage.style.display = 'none';
+            }
+        }
+
+        async function handleStakeNow(event) {
+            if (!currentUser) { 
+                showStatusMessage('Please log in to stake assets.', true);
+                return;
+            }
+            conversionPrompt.style.display = 'none';
+
+            const button = event.target;
+            const coinId = button.dataset.coinId;
+            const coinShortName = button.dataset.coinShortName.toUpperCase();
+            const minStake = parseFloat(button.dataset.minStake);
+            
+            const amountInput = button.parentElement.querySelector('.stake-amount-input');
+            const amountToStake = parseFloat(amountInput.value);
+
+            if (isNaN(amountToStake) || amountToStake <= 0) {
+                showStatusMessage('Please enter a valid positive amount to stake.', true);
+                return;
+            }
+            if (amountToStake < minStake) {
+                showStatusMessage(`Amount to stake must be at least ${formatNumber(minStake, 8)} ${coinShortName}.`, true);
+                return;
+            }
+
+            const paymentWallet = userWallets.find(w => w.shortName.toUpperCase() === coinShortName);
+            const balance = paymentWallet ? parseFloat(paymentWallet.balance) : 0;
+
+            if (balance < amountToStake) {
+                showStatusMessage(`Insufficient ${coinShortName} balance. Required: ${formatNumber(amountToStake, 8)}, Available: ${formatNumber(balance, 8)}.`, true);
+                conversionPrompt.style.display = 'block';
+                return;
+            }
+
+            if (!confirm(`Confirm stake of ${formatNumber(amountToStake, 8)} ${coinShortName}?`)) return;
+
+            button.disabled = true;
+            button.textContent = 'Staking...';
+
+            try {
+                const response = await fetch(`/api/stake`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Credentials': 'include' },
+                    body: JSON.stringify({ stakeable_coin_id: coinId, amount_to_stake: amountToStake })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Staking failed.');
+                
+                showStatusMessage(result.message || 'Successfully staked!', false);
+                amountInput.value = ''; 
+                await fetchUserWallets(); // Refresh balances
+                await fetchAndDisplayMyStakes(); // Refresh my stakes list
+                displayRelevantBalances(new Set(Array.from(stakeableCoinsContainer.querySelectorAll('.stake-now-btn')).map(btn => btn.dataset.coinShortName.toUpperCase())));
+
+
+            } catch (error) {
+                console.error('Staking error:', error);
+                showStatusMessage(`Error: ${error.message}`, true);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Stake Now';
+            }
+        }
+        
+        async function fetchAndDisplayMyStakes() {
+            if (!myStakesTableBody) return;
+            myStakesTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #A0A6AD;">Loading your stakes...</td></tr>';
+            if (!currentUser) {
+                 myStakesTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #A0A6AD;">Please log in to see your stakes.</td></tr>';
+                 return;
+            }
+            try {
+                const response = await fetch('/api/my-stakes', { credentials: 'include' });
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const stakes = await response.json();
+                myStakesTableBody.innerHTML = '';
+                if (stakes.length === 0) {
+                    myStakesTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #A0A6AD;">You have no active or past stakes.</td></tr>';
+                    return;
+                }
+                stakes.forEach(stake => {
+                    const row = myStakesTableBody.insertRow();
+                    const statusClass = `status-${stake.status.toLowerCase()}`;
+                    row.innerHTML = `
+                        <td>${stake.coin_name} (${stake.coin_short_name})</td>
+                        <td>${formatNumber(stake.amount_staked, 8)}</td>
+                        <td>${formatDate(stake.start_date)}</td>
+                        <td>${stake.end_date ? formatDate(stake.end_date) : 'Flexible (No Lockup)'}</td>
+                        <td>${formatNumber(stake.expected_roi_value, 8)} ${stake.coin_short_name} (${stake.roi_percentage}% ${stake.roi_period})</td>
+                        <td class="${statusClass}">${stake.status}</td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching user stakes:', error);
+                myStakesTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: #ff6b6b;">Error loading stakes: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Initialization
+        async function initPage() {
+            try {
+                await checkAuth(); 
+                await fetchUserWallets(); 
+                // coinPricesUSD is not directly used for staking calculations here, but could be for display if needed
+                await fetchAndDisplayStakeableCoins(); 
+                await fetchAndDisplayMyStakes();
+            } catch(error) {
+                console.log("Page initialization failed, likely due to auth redirect.");
+                const mainLoadingMsg = document.getElementById('stakes-loading-message');
+                if(mainLoadingMsg) mainLoadingMsg.textContent = 'Failed to load page. Please ensure you are logged in.';
+                else { 
+                    const container = document.querySelector('.content-grid');
+                    if(container) container.innerHTML = '<p style="color: red; text-align: center;">Page failed to load. Please try logging in again.</p>';
+                }
+            }
+        }
+
+        initPage();
+    });
+    </script>
+</body>
+</html>
