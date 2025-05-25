@@ -67,7 +67,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Initialization error:', error);
     // Optionally, hide loading overlay and show error message
     document.getElementById('loadingOverlay').style.display = 'none';
-    alert('Failed to load the page. Please try again.');
+    const bodyElement = document.querySelector('body');
+    if (bodyElement) {
+        bodyElement.innerHTML = `<p style="color: red; padding: 20px;">Failed to load page critical data: ${error.message}. Please try refreshing or <a href="/login.html">login again</a>.</p>`;
+    } else {
+        alert('Failed to load the page. Please try again.');
+    }
   }
 });
 
@@ -75,16 +80,23 @@ document.addEventListener('DOMContentLoaded', async () => {
  * 1) Check current user
  ****************************************************/
 async function fetchCurrentUser() {
-  const meRes = await fetch('/api/auth/me', { credentials: 'include' });
-  if (!meRes.ok) {
-    // If 401 or not ok, redirect to login page
-    window.location.href = '/login.html';
-    throw new Error('Not logged in');
+  try {
+    const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!meRes.ok) {
+      // If 401 or not ok, redirect to login page
+      window.location.href = '/login.html';
+      throw new Error('Not logged in');
+    }
+    const meData = await meRes.json();
+    currentUser = meData.user;
+    // The user's local currency
+    userCurrency = currentUser.accountCurrency || 'USD';
+  } catch (error) {
+     console.error("fetchCurrentUser error:", error.message);
+     currentUser = null; // Ensure currentUser is null if auth fails
+     userCurrency = 'USD'; // Default currency
+     throw error; // Re-throw to be caught by DOMContentLoaded
   }
-  const meData = await meRes.json();
-  currentUser = meData.user;
-  // The user's local currency
-  userCurrency = currentUser.accountCurrency || 'USD';
 }
 
 /****************************************************
@@ -115,7 +127,12 @@ async function fetchExchangeRates() {
       throw new Error(`Exchange rate fetch failed: ${res.status}`);
     }
     const data = await res.json();
-    exchangeRates = data.conversion_rates || {};
+    if (data.result === 'success') {
+        exchangeRates = data.conversion_rates || {};
+    } else {
+        console.error("ExchangeRate-API success false:", data['error-type']);
+        exchangeRates = {}; // Fallback
+    }
   } catch (error) {
     console.error('Error fetching exchange rates:', error);
     exchangeRates = {};
@@ -126,6 +143,11 @@ async function fetchExchangeRates() {
  * 4) Fetch user wallets
  ****************************************************/
 async function fetchUserWallets() {
+  if (!currentUser || !currentUser.id) {
+    console.error("Cannot fetch user wallets, user not authenticated.");
+    userWallets = [];
+    return;
+  }
   try {
     const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
     if (!res.ok) {
@@ -142,6 +164,11 @@ async function fetchUserWallets() {
  * 5) Fetch user deposits
  ****************************************************/
 async function fetchUserDeposits() {
+  if (!currentUser || !currentUser.id) {
+    console.error("Cannot fetch user deposits, user not authenticated.");
+    deposits = [];
+    return;
+  }
   try {
     const res = await fetch(`/api/user/${currentUser.id}/deposits`, { credentials: 'include' });
     if (!res.ok) {
@@ -161,87 +188,84 @@ function renderDepositTable() {
   const tbody = document.querySelector('#depositTable tbody');
   tbody.innerHTML = '';
 
-  // Get search term & filter
   const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
   const filterStatus = document.getElementById('statusFilter').value;
 
-  // Sort deposits by date descending (newest first)
-  const sortedDeposits = [...deposits].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedDeposits = [...deposits].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  // Filter deposits
   const filtered = sortedDeposits.filter(dep => {
-    // status filter
-    if (filterStatus && dep.status !== filterStatus) {
-      return false;
+    // User Status filter (now includes admin statuses for user view)
+    let matchesStatus = true;
+    if (filterStatus) {
+        // Map combined statuses if necessary or ensure filter values match DB values
+        if (filterStatus === 'pending_user_confirmation' && dep.status !== 'pending_user_confirmation') matchesStatus = false;
+        else if (filterStatus === 'pending_approval' && dep.admin_status !== 'pending_approval' && dep.status === 'pending_user_confirmation') matchesStatus = false; // More specific
+        else if (filterStatus === 'confirmed' && dep.status !== 'confirmed') matchesStatus = false;
+        else if (filterStatus === 'rejected_by_admin' && dep.status !== 'rejected_by_admin') matchesStatus = false;
+        else if (filterStatus === 'canceled' && dep.status !== 'canceled') matchesStatus = false;
+        else if (filterStatus === 'pending_approval' && !(dep.status === 'pending_user_confirmation' && dep.admin_status === 'pending_approval')) matchesStatus = false;
+
+
     }
-    // search
-    const combined = `${dep.reference} ${dep.method} ${dep.type}`.toLowerCase();
-    if (searchTerm && !combined.includes(searchTerm)) {
-      return false;
-    }
-    return true;
+
+
+    const combinedSearchable = `${dep.reference} ${dep.method} ${dep.type} ${dep.admin_status} ${dep.admin_remarks || ''}`.toLowerCase();
+    const matchesSearch = !searchTerm || combinedSearchable.includes(searchTerm);
+
+    return matchesStatus && matchesSearch;
   });
 
   filtered.forEach(dep => {
     const tr = document.createElement('tr');
 
-    // ID
-    const tdId = document.createElement('td');
-    tdId.textContent = dep.id;
-    tr.appendChild(tdId);
-
-    // Date
-    const tdDate = document.createElement('td');
-    tdDate.textContent = formatDate(dep.date);
-    tr.appendChild(tdDate);
-
-    // Reference
-    const tdRef = document.createElement('td');
-    tdRef.textContent = dep.reference;
-    tr.appendChild(tdRef);
-
-    // Method
-    const tdMethod = document.createElement('td');
-    tdMethod.textContent = dep.method;
-    tr.appendChild(tdMethod);
-
-    // Type
-    const tdType = document.createElement('td');
-    tdType.textContent = dep.type;
-    tr.appendChild(tdType);
-
-    // Amount (crypto)
-    const tdAmount = document.createElement('td');
-    tdAmount.textContent = dep.amount;
-    tr.appendChild(tdAmount);
-
-    // Total (local currency) - computed dynamically
+    ['id', 'date', 'reference', 'method', 'type', 'amount'].forEach(key => {
+        const td = document.createElement('td');
+        td.textContent = key === 'date' ? formatDate(dep[key]) : dep[key] || 'N/A';
+        tr.appendChild(td);
+    });
+    
+    // Total (local currency)
     const tdTotal = document.createElement('td');
-    const shortName = getShortNameFromMethod(dep.method); // e.g., "BTC"
+    const shortName = dep.method; // Assuming method now stores shortName directly
     const coinKey = guessCoinGeckoKey(shortName);
-    const coinUSDPrice = coinPrices[coinKey]?.usd ?? 1; // 1 if not found (for stablecoins like USDC)
+    const coinUSDPrice = coinPrices[coinKey]?.usd ?? ( (shortName ==='USDT' || shortName === 'USDC') ? 1 : 0);
     const amountCrypto = parseFloat(dep.amount);
     const totalUSD = amountCrypto * coinUSDPrice;
-
-    // Convert USD to user's local currency
     const rate = exchangeRates[userCurrency.toUpperCase()] || 1;
     const totalLocal = totalUSD * rate;
-
     tdTotal.textContent = `${totalLocal.toFixed(2)} ${userCurrency}`;
     tr.appendChild(tdTotal);
 
-    // Status
-    const tdStatus = document.createElement('td');
-    tdStatus.textContent = dep.status;
-    // Color-code the status
-    if (dep.status.toLowerCase().includes('pending')) {
-      tdStatus.classList.add('status-pending');
-    } else if (dep.status.toLowerCase().includes('cancel')) {
-      tdStatus.classList.add('status-canceled');
-    } else if (dep.status.toLowerCase().includes('confirm')) {
-      tdStatus.classList.add('status-confirmed');
+    // User Status
+    const tdUserStatus = document.createElement('td');
+    tdUserStatus.textContent = dep.status; // e.g. 'pending_user_confirmation', 'confirmed', 'rejected_by_admin'
+    tdUserStatus.className = `status-${dep.status.toLowerCase().replace(/\s+/g, '_')}`;
+    tr.appendChild(tdUserStatus);
+
+    // Admin Status
+    const tdAdminStatus = document.createElement('td');
+    tdAdminStatus.textContent = dep.admin_status || 'N/A';
+    tdAdminStatus.className = `status-${(dep.admin_status || '').toLowerCase().replace(/\s+/g, '_')}`;
+    tr.appendChild(tdAdminStatus);
+
+    // Approved Amount
+    const tdApprovedAmount = document.createElement('td');
+    // Show approved amount if it's different from original or if status is approved/rejected
+    if (dep.admin_status === 'approved' || dep.admin_status === 'rejected') {
+        tdApprovedAmount.textContent = dep.admin_approved_amount !== null ? dep.admin_approved_amount : 'N/A';
+    } else {
+        tdApprovedAmount.textContent = 'N/A'; // Or original amount if preferred before review
     }
-    tr.appendChild(tdStatus);
+    tr.appendChild(tdApprovedAmount);
+    
+    // Admin Remarks
+    const tdAdminRemarks = document.createElement('td');
+    tdAdminRemarks.textContent = dep.admin_remarks || 'N/A';
+    if (dep.admin_remarks && dep.admin_remarks.length > 30) { // Basic tooltip for long remarks
+        tdAdminRemarks.title = dep.admin_remarks;
+        tdAdminRemarks.textContent = dep.admin_remarks.substring(0, 27) + '...';
+    }
+    tr.appendChild(tdAdminRemarks);
 
     tbody.appendChild(tr);
   });
@@ -251,29 +275,14 @@ function renderDepositTable() {
  * 7) Setup event listeners
  ****************************************************/
 function setupEventListeners() {
-  // Search & Filter
   document.getElementById('searchInput').addEventListener('input', renderDepositTable);
   document.getElementById('statusFilter').addEventListener('change', renderDepositTable);
-
-  // Open deposit modal
   document.getElementById('openDepositBtn').addEventListener('click', openDepositModal);
-
-  // Close deposit modal
   document.getElementById('modalCloseBtn').addEventListener('click', closeDepositModal);
-
-  // Copy address in form
   document.getElementById('copyAddressBtn').addEventListener('click', copyWalletAddress);
-
-  // Copy address in confirmation section
   document.getElementById('copyConfirmAddressBtn').addEventListener('click', copyConfirmWalletAddress);
-
-  // When user changes coin method, update address
   document.getElementById('depositMethod').addEventListener('change', onChangeCoinMethod);
-
-  // When user changes deposit amount, update local currency
   document.getElementById('depositAmount').addEventListener('input', updateLocalCurrencyEquivalent);
-
-  // Submit deposit form
   document.getElementById('depositForm').addEventListener('submit', onDepositFormSubmit);
 }
 
@@ -281,27 +290,13 @@ function setupEventListeners() {
  * Open deposit modal
  ****************************************************/
 function openDepositModal() {
-  // Reset the form and hide the confirmation section
   const form = document.getElementById('depositForm');
+  form.style.display = 'flex'; // Ensure form is visible
   form.reset();
   document.getElementById('confirmationSection').style.display = 'none';
-
-  // Populate the method dropdown from userWallets, filtering only coins present in coinPrices
   populateMethodDropdown();
-
-  // Show user currency label
   document.getElementById('localCurrencyLabel').textContent = userCurrency;
-
-  // Default address to first wallet if available
-  if (userWallets.length > 0) {
-    const firstWallet = userWallets[0];
-    document.getElementById('depositAddress').value = firstWallet.walletAddress;
-  }
-
-  // Reset the local currency equivalent
-  document.getElementById('localCurrencyEquivalent').value = '';
-
-  // Show modal
+  onChangeCoinMethod(); // Set initial address and update currency equivalent
   document.getElementById('depositModalOverlay').style.display = 'flex';
 }
 
@@ -314,46 +309,36 @@ function closeDepositModal() {
 
 /****************************************************
  * Populate the method dropdown with user wallets
- * Each wallet has: coinName, shortName, walletAddress
  ****************************************************/
 function populateMethodDropdown() {
   const methodSelect = document.getElementById('depositMethod');
-  methodSelect.innerHTML = ''; // clear first
+  methodSelect.innerHTML = ''; 
 
-  // Filter wallets to include only those present in coinPrices
-  const filteredWallets = userWallets.filter(wallet => {
+  const depositableWallets = userWallets.filter(wallet => {
     const coinKey = guessCoinGeckoKey(wallet.shortName);
-    return coinPrices.hasOwnProperty(coinKey);
+    // Only allow deposits for coins we have price info for, or are known stables (USDT, USDC)
+    return coinPrices.hasOwnProperty(coinKey) || wallet.shortName === 'USDT' || wallet.shortName === 'USDC';
   });
 
-  if (filteredWallets.length === 0) {
+  if (depositableWallets.length === 0) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = 'No available wallets';
+    option.textContent = 'No depositable wallets';
     option.disabled = true;
     methodSelect.appendChild(option);
+    document.getElementById('depositAddress').value = ''; // Clear address field
     return;
   }
 
-  filteredWallets.forEach(wallet => {
-    // Create option with coin name
+  depositableWallets.forEach(wallet => {
     const option = document.createElement('option');
-    option.value = wallet.shortName; // e.g. "BTC"
-    option.textContent = wallet.coinName; // e.g. "Bitcoin"
-
-    // Store address in data-attribute for easy retrieval
+    option.value = wallet.shortName; 
+    option.textContent = `${wallet.coinName} (${wallet.shortName})`;
     option.setAttribute('data-address', wallet.walletAddress);
-
     methodSelect.appendChild(option);
   });
-}
-
-/****************************************************
- * Get shortName from method (coinName)
- ****************************************************/
-function getShortNameFromMethod(coinName) {
-  const wallet = userWallets.find(w => w.coinName.toLowerCase() === coinName.toLowerCase());
-  return wallet ? wallet.shortName : '';
+  // Trigger change to update address field for the first selected item
+  onChangeCoinMethod(); 
 }
 
 /****************************************************
@@ -361,42 +346,38 @@ function getShortNameFromMethod(coinName) {
  ****************************************************/
 function onChangeCoinMethod() {
   const methodSelect = document.getElementById('depositMethod');
-  const selectedOption = methodSelect.options[methodSelect.selectedIndex];
-  const address = selectedOption.getAttribute('data-address') || '';
-  document.getElementById('depositAddress').value = address;
-  // Also recalc local currency if user typed an amount already
+  if (methodSelect.options.length > 0 && methodSelect.selectedIndex !== -1) {
+    const selectedOption = methodSelect.options[methodSelect.selectedIndex];
+    const address = selectedOption.getAttribute('data-address') || '';
+    document.getElementById('depositAddress').value = address;
+  } else {
+     document.getElementById('depositAddress').value = 'No wallet selected or available';
+  }
   updateLocalCurrencyEquivalent();
 }
 
 /****************************************************
- * Copy wallet address in form
+ * Copy wallet address
  ****************************************************/
 function copyWalletAddress() {
   const addressField = document.getElementById('depositAddress');
   navigator.clipboard.writeText(addressField.value)
-    .then(() => {
-      alert('Address copied to clipboard!');
-    })
+    .then(() => alert('Address copied!'))
     .catch(err => {
       console.error('Failed to copy address:', err);
-      alert('Failed to copy address.');
+      alert('Failed to copy.');
+    });
+}
+function copyConfirmWalletAddress() {
+  const addressText = document.getElementById('confirmAddress').textContent;
+  navigator.clipboard.writeText(addressText)
+    .then(() => alert('Address copied!'))
+    .catch(err => {
+      console.error('Failed to copy address:', err);
+      alert('Failed to copy.');
     });
 }
 
-/****************************************************
- * Copy wallet address in confirmation section
- ****************************************************/
-function copyConfirmWalletAddress() {
-  const addressField = document.getElementById('confirmAddress');
-  navigator.clipboard.writeText(addressField.textContent)
-    .then(() => {
-      alert('Address copied to clipboard!');
-    })
-    .catch(err => {
-      console.error('Failed to copy address:', err);
-      alert('Failed to copy address.');
-    });
-}
 
 /****************************************************
  * Calculate local currency based on coinPrices & exchangeRates
@@ -404,62 +385,56 @@ function copyConfirmWalletAddress() {
 function updateLocalCurrencyEquivalent() {
   const amountStr = document.getElementById('depositAmount').value;
   const methodSelect = document.getElementById('depositMethod');
-  const shortName = methodSelect.value; // e.g. "BTC"
+  const localCurrencyEquivalentInput = document.getElementById('localCurrencyEquivalent');
+  
+  if (!methodSelect.value) { // No coin selected
+      localCurrencyEquivalentInput.value = '';
+      return;
+  }
+  const shortName = methodSelect.value; 
 
-  if (!amountStr || !shortName) {
-    document.getElementById('localCurrencyEquivalent').value = '';
+  if (!amountStr) {
+    localCurrencyEquivalentInput.value = '';
     return;
   }
 
   const amountCrypto = parseFloat(amountStr);
   if (isNaN(amountCrypto) || amountCrypto <= 0) {
-    document.getElementById('localCurrencyEquivalent').value = '';
+    localCurrencyEquivalentInput.value = '';
     return;
   }
 
-  // coinPrices uses coingecko IDs, we need to map shortName to the correct ID if necessary.
   const coinKey = guessCoinGeckoKey(shortName);
+  const coinUSDPrice = coinPrices[coinKey]?.usd ?? ( (shortName ==='USDT' || shortName === 'USDC') ? 1 : 0);
 
-  // If coin not found or we have no price, assume 1 (like USDC, USDT)
-  const coinUSDPrice = coinPrices[coinKey]?.usd ?? 1;
-
-  // crypto in USD
+  if(coinUSDPrice === 0 && shortName !== 'USDT' && shortName !== 'USDC'){
+      console.warn(`Price for ${shortName} (key: ${coinKey}) not found. Cannot calculate local equivalent.`);
+      localCurrencyEquivalentInput.value = 'Price N/A';
+      return;
+  }
+  
   const totalUSD = coinUSDPrice * amountCrypto;
-
-  // now convert USD -> user's local currency
-  const rate = exchangeRates[userCurrency.toUpperCase()] || 1;
+  const rate = exchangeRates[userCurrency.toUpperCase()] || 1; // Default to 1 if userCurrency rate not found (USD to USD)
   const localValue = totalUSD * rate;
 
-  // display localValue
-  document.getElementById('localCurrencyEquivalent').value = localValue.toFixed(2);
+  localCurrencyEquivalentInput.value = localValue.toFixed(2);
 }
 
 /**
  * A small helper to guess the coin gecko key from the shortName.
- * You might want a more robust mapping if your DB differs.
- * E.g. "BTC" -> "bitcoin", "ETH" -> "ethereum", "BNB" -> "binancecoin", etc.
- * For USDC/USDT, fallback is 1:1 to USD
  */
 function guessCoinGeckoKey(shortName) {
-  switch (shortName.toUpperCase()) {
-    case 'BTC': return 'bitcoin';
-    case 'ETH': return 'ethereum';
-    case 'BNB': return 'binancecoin';
-    case 'DOGE': return 'dogecoin';
-    case 'USDT': return 'tether';
-    case 'USDC': return 'usd-coin';
-    case 'XRP': return 'ripple';
-    case 'ADA': return 'cardano';
-    case 'SOL': return 'solana';
-    case 'AVAX': return 'avalanche-2';
-    case 'SHIB': return 'shiba-inu';
-    case 'LTC': return 'litecoin';
-    case 'TRX': return 'tron';
-    case 'PEPE': return 'pepe';
-    default:
-      // fallback
-      return 'usd-coin'; // treat as $1 stable
-  }
+  if (!shortName) return 'usd-coin'; // Default if shortName is undefined or empty
+  const upperShortName = shortName.toUpperCase();
+  const mapping = {
+    'BTC': 'bitcoin', 'ETH': 'ethereum', 'BNB': 'binancecoin', 
+    'DOGE': 'dogecoin', 'USDT': 'tether', 'USDC': 'usd-coin',
+    'XRP': 'ripple', 'ADA': 'cardano', 'SOL': 'solana', 
+    'AVAX': 'avalanche-2', 'SHIB': 'shiba-inu', 'LTC': 'litecoin',
+    'TRX': 'tron', 'MATIC': 'polygon', 'PEPE': 'pepe'
+    // Add more mappings as needed
+  };
+  return mapping[upperShortName] || shortName.toLowerCase(); // Fallback to lowercase shortName
 }
 
 /****************************************************
@@ -467,32 +442,36 @@ function guessCoinGeckoKey(shortName) {
  ****************************************************/
 async function onDepositFormSubmit(e) {
   e.preventDefault();
+  document.getElementById('confirmDepositBtn').disabled = true; // Prevent double submission
 
-  // Hide the form
-  document.getElementById('depositForm').style.display = 'none';
-
-  const depositType = document.getElementById('depositType').value;       // "crypto"
+  const depositForm = document.getElementById('depositForm');
+  const confirmationSection = document.getElementById('confirmationSection');
+  
+  const depositType = document.getElementById('depositType').value;      
   const methodSelect = document.getElementById('depositMethod');
-  const methodText = methodSelect.options[methodSelect.selectedIndex].textContent; // e.g. "Bitcoin"
-  const shortName = methodSelect.value; // e.g. "BTC"
+  const coinShortName = methodSelect.value; // e.g. "BTC"
+  const coinFullName = methodSelect.options[methodSelect.selectedIndex]?.textContent.split(' (')[0] || coinShortName; // "Bitcoin"
   const depositAddress = document.getElementById('depositAddress').value;
   const depositAmount = document.getElementById('depositAmount').value;
   const localEquivalent = document.getElementById('localCurrencyEquivalent').value;
 
-  // Generate a 6-char random reference with letters+digits uppercase
-  const reference = generateShortReference(6);
+  if (!coinShortName || !depositAmount || parseFloat(depositAmount) <= 0 || !depositAddress || depositAddress === 'No wallet selected or available') {
+    alert('Please select a coin, enter a valid amount, and ensure a wallet address is available.');
+    document.getElementById('confirmDepositBtn').disabled = false;
+    return;
+  }
 
-  // Build the deposit creation payload
   const payload = {
     userId: currentUser.id,
-    method: methodText,         // e.g. "Bitcoin"
-    type: depositType,          // "crypto"
-    amount: depositAmount,      // e.g. "0.5"
-    totalEUR: localEquivalent   // We'll store local currency here (the backend calls it totalEUR)
+    method: coinShortName, // STORE SHORTNAME (e.g. BTC) as method
+    type: depositType,        
+    amount: depositAmount,    
+    totalEUR: localEquivalent, // This stores the calculated local currency equivalent
+    // status, admin_status, admin_approved_amount, admin_remarks will be set by backend defaults
   };
 
   try {
-    // 1) Create deposit in DB
+    document.getElementById('loadingOverlay').style.display = 'flex';
     const createRes = await fetch('/api/deposits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -500,27 +479,24 @@ async function onDepositFormSubmit(e) {
       body: JSON.stringify(payload)
     });
     if (!createRes.ok) {
-      throw new Error(`Deposit create failed: ${createRes.status}`);
+      const errData = await createRes.json();
+      throw new Error(errData.error || `Deposit create failed: ${createRes.status}`);
     }
     const createData = await createRes.json();
-    const depositId = createData.depositId;
-    const backendReference = createData.reference; // backend's reference
+    const backendReference = createData.reference;
 
-    // 2) Send Telegram message
-    const textMsg = `New deposit created:
+    const textMsg = `New deposit initiated by User ${currentUser.id} (${currentUser.email}):
 Reference: ${backendReference}
-Amount: ${depositAmount} ${shortName}
-Wallet Address: ${depositAddress}
-User ID: ${currentUser.id}
-Status: Pending Confirmation`;
+Amount: ${depositAmount} ${coinShortName} (${coinFullName})
+User's Wallet Address for Deposit: ${depositAddress} 
+Status: pending_user_confirmation / admin_status: pending_approval`;
 
     for (const chatId of TELEGRAM_CHAT_IDS) {
       await sendTelegramMessage(chatId, textMsg);
     }
 
-    // 3) Create user notification
     const notePayload = {
-      message: `Your deposit request (Ref: ${backendReference}) for ${depositAmount} ${shortName} is pending.`
+      message: `Your deposit request (Ref: ${backendReference}) for ${depositAmount} ${coinShortName} is pending user confirmation and admin approval.`
     };
     await fetch(`/api/user/${currentUser.id}/notifications`, {
       method: 'POST',
@@ -529,37 +505,46 @@ Status: Pending Confirmation`;
       body: JSON.stringify(notePayload)
     });
 
-    // 4) Show confirmation info
+    depositForm.style.display = 'none';
     document.getElementById('confirmRef').textContent = backendReference;
-    document.getElementById('confirmAmountCrypto').textContent = `${depositAmount} ${shortName}`;
+    document.getElementById('confirmAmountCrypto').textContent = `${depositAmount} ${coinShortName}`;
     document.getElementById('confirmAmountLocal').textContent = `${localEquivalent} ${userCurrency}`;
     document.getElementById('confirmAddress').textContent = depositAddress;
-    document.getElementById('confirmationSection').style.display = 'block';
+    confirmationSection.style.display = 'block';
 
-    // 5) Refresh deposit list (to show the new deposit)
-    await fetchUserDeposits();
-    renderDepositTable();
+    // Add to local list to reflect immediately
+    const newDepositEntry = {
+        id: createData.depositId, // Use ID from response
+        date: new Date().toISOString(), // Use current date for immediate display
+        reference: backendReference,
+        method: coinShortName, // Store shortName
+        type: depositType,
+        amount: depositAmount,
+        totalEUR: localEquivalent, // This represents the local currency equivalent
+        status: 'pending_user_confirmation', // Initial user status
+        admin_status: 'pending_approval',   // Initial admin status
+        admin_approved_amount: depositAmount, // Default approved to actual amount
+        admin_remarks: null,
+        createdAt: new Date().toISOString()
+    };
+    deposits.push(newDepositEntry);
+    renderDepositTable(); // Re-render to show the new deposit at the top
 
   } catch (error) {
     alert(`Error creating deposit: ${error.message}`);
     console.error('Error on deposit creation:', error);
-    // Re-show the form in case of error
-    document.getElementById('depositForm').style.display = 'block';
+    // depositForm.style.display = 'flex'; // Re-show form if error
+  } finally {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('confirmDepositBtn').disabled = false;
+    // Don't close modal automatically, user should see confirmation.
   }
 }
 
 /****************************************************
- * Generate short reference: random letters+digits uppercase
+ * Generate short reference (not used, backend generates)
  ****************************************************/
-function generateShortReference(length) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let ref = '';
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * chars.length);
-    ref += chars[randomIndex];
-  }
-  return ref;
-}
+// function generateShortReference(length) { ... } // Can be removed
 
 /****************************************************
  * Send Telegram message
@@ -571,11 +556,14 @@ async function sendTelegramMessage(chatId, text) {
     text
   };
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+    if (!response.ok) {
+        console.error("Telegram API error:", await response.json());
+    }
   } catch (err) {
     console.error('Failed to send Telegram message:', err);
   }
@@ -585,7 +573,15 @@ async function sendTelegramMessage(chatId, text) {
  * Helper: format date
  ****************************************************/
 function formatDate(dateString) {
-  if (!dateString) return '';
-  const d = new Date(dateString);
-  return d.toLocaleString(); // e.g. "1/27/2025, 10:15 AM"
+  if (!dateString) return 'N/A';
+  try {
+    const d = new Date(dateString);
+    // Check if date is valid
+    if (isNaN(d.getTime())) {
+        return 'Invalid Date';
+    }
+    return d.toLocaleString(); 
+  } catch (e) {
+    return dateString; // Fallback to original string if parsing fails
+  }
 }

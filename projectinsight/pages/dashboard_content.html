@@ -1,0 +1,87 @@
+<div class="content-grid">
+    <div id="total-balance-section">
+        <h2>Total Balance</h2>
+        <p id="total-balance-value">Loading...</p>
+    </div>
+
+    <div id="top-coins-section">
+        <h2>Top Coins</h2>
+        <ul id="top-coins-list">
+            <li>Loading...</li>
+        </ul>
+    </div>
+
+    <div id="chart-container-main">
+        <h2>Market Chart</h2>
+        <div id="embedded-chart">
+            <iframe src="pages/themed_chart_widget.html" style="width:100%; height:500px; border:none;"></iframe>
+        </div>
+    </div>
+
+    <div id="trading-widget-container-main">
+        <h2>Quick Trade</h2>
+        <div id="embedded-trading-widget">
+            <iframe src="trade_widget.html" style="width:100%; height:600px; border:none;"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Helper function to format numbers (without explicit currency symbol if not provided by API)
+    function formatDisplayValue(value) {
+        // The value is already in the user's currency per API design.
+        return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Fetch and display total balance
+    async function fetchTotalBalance() {
+        const totalBalanceValueEl = document.getElementById('total-balance-value');
+        try {
+            const response = await fetch('/api/dashboard/total-balance', { credentials: 'include' });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json(); // API returns { totalBalance: NUMBER }
+            // The totalBalance is already in the user's account currency.
+            totalBalanceValueEl.textContent = formatDisplayValue(data.totalBalance) + " (User Currency)";
+        } catch (error) {
+            console.error('Error fetching total balance:', error);
+            totalBalanceValueEl.textContent = 'Error loading balance.';
+        }
+    }
+
+    // Fetch and display top coins
+    async function fetchTopCoins() {
+        const topCoinsListEl = document.getElementById('top-coins-list');
+        try {
+            const response = await fetch('/api/dashboard/top-coins', { credentials: 'include' });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const coins = await response.json(); // API returns [{ ..., valueInUserCurrency: NUMBER }]
+            
+            topCoinsListEl.innerHTML = ''; // Clear "Loading..."
+
+            if (coins.length === 0) {
+                topCoinsListEl.innerHTML = '<li>No coins to display.</li>';
+                return;
+            }
+
+            coins.forEach(coin => {
+                const listItem = document.createElement('li');
+                // valueInUserCurrency is already in the user's account currency.
+                // Example icon display (actual icon URLs are placeholders from API):
+                // listItem.innerHTML = `<img src="${coin.iconUrl}" alt="${coin.shortName}" style="width:16px; height:16px; vertical-align:middle; margin-right:5px;">`;
+                listItem.textContent = `${coin.coinName} (${coin.shortName}): ${coin.balance} - Value: ${formatDisplayValue(coin.valueInUserCurrency)} (User Currency)`;
+                topCoinsListEl.appendChild(listItem);
+            });
+        } catch (error) {
+            console.error('Error fetching top coins:', error);
+            topCoinsListEl.innerHTML = '<li>Error loading top coins.</li>';
+        }
+    }
+
+    // Call functions when the script is executed
+    fetchTotalBalance();
+    fetchTopCoins();
+</script>

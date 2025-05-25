@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convert Assets</title>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* Styles adapted from global_theme.css and trade_widget.html for consistency */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #04080B; 
+            color: #E0E6ED;
+            line-height: 1.6;
+            padding: 20px; 
+        }
+        .content-grid {
+            background-color: #0A0E11;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+            max-width: 700px; /* Max width for the form */
+            margin: auto; /* Center it */
+        }
+        h2 {
+            color: #E0E6ED;
+            border-bottom: 1px solid #2A2E31;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            color: #A0A6AD;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        .form-group select,
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #1A1E21;
+            color: #E0E6ED;
+            border: 1px solid #2A2E31;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .balance-display, .rate-display, .estimated-receive {
+            font-size: 0.9em;
+            color: #A0A6AD;
+            margin-top: 5px;
+            height: 20px; 
+        }
+        .balance-display strong, .rate-display strong, .estimated-receive strong {
+            color: #E0E6ED;
+        }
+
+        #executeConvertBtn {
+            padding: 12px 20px;
+            font-size: 1em;
+            background-color: #1e90ff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+        #executeConvertBtn:hover:not(:disabled) {
+            background-color: #187bcd;
+        }
+        #executeConvertBtn:disabled {
+            background-color: #2A2E31;
+            color: #555;
+            cursor: not-allowed;
+        }
+        #convertStatusMessage {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+        #convertStatusMessage.success {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+        #convertStatusMessage.error {
+            background-color: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+
+        /* Select2 dark theme overrides */
+        .select2-container--default .select2-selection--single {
+            background-color: #1A1E21; 
+            border: 1px solid #2A2E31; 
+            border-radius: 4px;
+            height: 40px; 
+            padding: 5px 0px 5px 10px;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #E0E6ED; 
+            line-height: 28px; 
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 38px; 
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow b {
+            border-color: #E0E6ED transparent transparent transparent; 
+        }
+        .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+            border-color: transparent transparent #E0E6ED transparent; 
+        }
+        .select2-dropdown {
+            background-color: #1A1E21; 
+            border: 1px solid #2A2E31; 
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #0A0E11; 
+            color: #E0E6ED;
+        }
+        .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: #0A0E11;
+        }
+        .select2-results__option {
+            color: #E0E6ED;
+            padding: 8px 10px;
+        }
+        .select2-search--dropdown .select2-search__field {
+            background-color: #0A0E11; 
+            color: #E0E6ED;
+            border: 1px solid #2A2E31;
+        }
+        .asset-icon-select2 { 
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 8px;
+            border-radius: 50%;
+        }
+        .material-icons.asset-icon-select2 {
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-grid">
+        <h2>Convert Assets</h2>
+
+        <div class="form-group">
+            <label for="convertFromAsset">From Asset:</label>
+            <select id="convertFromAsset" style="width: 100%;"></select>
+            <div class="balance-display">Available Balance: <strong id="convertFromBalance">0.00</strong></div>
+        </div>
+
+        <div class="form-group">
+            <label for="convertAmountFrom">Amount to Convert:</label>
+            <input type="number" id="convertAmountFrom" step="any" placeholder="0.00">
+        </div>
+
+        <div class="form-group">
+            <label for="convertToAsset">To Asset:</label>
+            <select id="convertToAsset" style="width: 100%;"></select>
+        </div>
+        
+        <div class="estimated-receive">Estimated to receive: <strong id="convertAmountToEstimated">0.00</strong> <span id="convertToAssetLabel"></span></div>
+        <div class="rate-display">Current Rate: <strong id="conversionRateDisplay">1 {FROM_ASSET} = 0.000000 {TO_ASSET}</strong></div>
+
+        <button id="executeConvertBtn" disabled>Convert</button>
+        <div id="convertStatusMessage" style="display: none;"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        let currentUser = null;
+        let userWallets = []; // { userId, coinName, shortName, walletAddress, privateKey, balance }
+        let coinPricesUSD = {}; // { bitcoin: { usd: 50000 }, ethereum: { usd: 4000 } }
+        // No need for allCrypto and fiatCurrencies global list if populated from userWallets and a predefined master list for 'To' asset
+        
+        const ALL_POSSIBLE_CRYPTO = [ // Used for "Convert To" if not in userWallets
+            { symbol: 'BTC', name: 'Bitcoin', market: 'Crypto' }, { symbol: 'ETH', name: 'Ethereum', market: 'Crypto' },
+            { symbol: 'LTC', name: 'Litecoin', market: 'Crypto' }, { symbol: 'XRP', name: 'Ripple', market: 'Crypto' },
+            { symbol: 'ADA', name: 'Cardano', market: 'Crypto' }, { symbol: 'SOL', name: 'Solana', market: 'Crypto' },
+            { symbol: 'MATIC', name: 'Polygon', market: 'Crypto' }, { symbol: 'DOGE', name: 'Dogecoin', market: 'Crypto' },
+            { symbol: 'USDT', name: 'Tether', market: 'Crypto' }, { symbol: 'USDC', name: 'USD Coin', market: 'Crypto' }
+            // Add more as needed, or fetch from a dedicated endpoint
+        ];
+        const ALL_POSSIBLE_FIAT = [ // Used for "Convert To"
+            { symbol: 'USD', name: 'US Dollar', market: 'Fiat' }, { symbol: 'EUR', name: 'Euro', market: 'Fiat' },
+            { symbol: 'GBP', name: 'British Pound', market: 'Fiat' }
+            // Add more as needed
+        ];
+
+
+        const convertFromAssetSelect = $('#convertFromAsset');
+        const convertToAssetSelect = $('#convertToAsset');
+        const convertAmountFromInput = document.getElementById('convertAmountFrom');
+        const convertFromBalanceDisplay = document.getElementById('convertFromBalance');
+        const convertAmountToEstimatedDisplay = document.getElementById('convertAmountToEstimated');
+        const convertToAssetLabel = document.getElementById('convertToAssetLabel');
+        const conversionRateDisplay = document.getElementById('conversionRateDisplay');
+        const executeConvertBtn = document.getElementById('executeConvertBtn');
+        const convertStatusMessage = document.getElementById('convertStatusMessage');
+
+        // --- Utility Functions (adapted from trade_widget.html if necessary) ---
+        function formatNumber(num, decimals = 2) {
+            if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(decimals);
+            return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 8 });
+        }
+
+        const cryptoLogos = { BTC: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png", ETH: "https://assets.coingecko.com/coins/images/279/large/ethereum.png", USDT: "https://assets.coingecko.com/coins/images/325/large/Tether.png", USDC: "https://assets.coingecko.com/coins/images/6319/large/usdc.png", /* Add more */ };
+        const fiatIcons = { USD: "attach_money", EUR: "euro_symbol", GBP: "currency_pound" };
+
+        function getIconUrl(symbol, market) {
+            if (market === 'Crypto') {
+                return cryptoLogos[symbol.toUpperCase()] || `https://cryptoicon-api.vercel.app/api/icon/${symbol.toLowerCase()}`;
+            } else if (market === 'Fiat') {
+                return "MATERIAL:" + (fiatIcons[symbol.toUpperCase()] || "attach_money");
+            }
+            return 'https://via.placeholder.com/24?text=?';
+        }
+
+        function formatAssetOption(option) {
+            if (!option.id) return option.text;
+            const market = $(option.element).data('market') || 'Crypto'; // Default to crypto if market not set
+            const balance = $(option.element).data('balance');
+            const logoUrl = getIconUrl(option.id, market);
+            let balanceHtml = '';
+            if (balance !== undefined && balance !== null) {
+                balanceHtml = `<span style="font-size:0.8em; color:#A0A6AD;"> (Bal: ${formatNumber(balance)})</span>`;
+            }
+
+            let iconHtml;
+            if (logoUrl.startsWith("MATERIAL:")) {
+                const iconName = logoUrl.substring("MATERIAL:".length);
+                iconHtml = `<span class="material-icons asset-icon-select2">${iconName}</span>`;
+            } else {
+                iconHtml = `<img src="${logoUrl}" class="asset-icon-select2" alt="${option.id}" />`;
+            }
+            return $(`<span>${iconHtml}${option.text}${balanceHtml}</span>`);
+        }
+        
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await Promise.all([fetchUserWallets(), fetchCoinPricesUSD()]);
+            populateAssetDropdowns();
+            setupEventListeners();
+        });
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!res.ok) window.location.href = '/login.html';
+                const data = await res.json();
+                currentUser = data.user;
+            } catch (e) { window.location.href = '/login.html'; }
+        }
+
+        async function fetchUserWallets() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+                userWallets = await res.json();
+            } catch (e) { console.error("Failed to fetch user wallets", e); userWallets = []; }
+        }
+
+        async function fetchCoinPricesUSD() {
+            try {
+                const res = await fetch('/api/coin-prices', { credentials: 'include' });
+                coinPricesUSD = await res.json();
+            } catch (e) { console.error("Failed to fetch coin prices", e); coinPricesUSD = {}; }
+        }
+        
+        async function getBackendExchangeRate(targetCurrency) {
+            if (targetCurrency.toUpperCase() === 'USD') return 1.0;
+            try {
+                const response = await fetch(`/api/exchange-rate/${targetCurrency}`, {credentials: 'include'});
+                if (!response.ok) throw new Error('Rate not found');
+                const data = await response.json();
+                return data.rate; // Rate is TARGET per USD
+            } catch (error) {
+                console.error(`Error fetching exchange rate for ${targetCurrency}:`, error);
+                return null; // Indicate failure
+            }
+        }
+
+
+        function populateAssetDropdowns() {
+            // Populate "From" asset dropdown
+            convertFromAssetSelect.empty();
+            userWallets.forEach(wallet => {
+                if (parseFloat(wallet.balance) > 0) { // Only list assets with balance
+                    const marketType = (fiatCurrencies.some(f => f.symbol === wallet.shortName)) ? 'Fiat' : 'Crypto';
+                    const option = new Option(`${wallet.coinName} (${wallet.shortName})`, wallet.shortName);
+                    $(option).data('market', marketType);
+                    $(option).data('balance', wallet.balance);
+                    convertFromAssetSelect.append(option);
+                }
+            });
+            convertFromAssetSelect.select2({ templateResult: formatAssetOption, templateSelection: formatAssetOption });
+
+            // Populate "To" asset dropdown
+            convertToAssetSelect.empty();
+            const allPossibleAssets = [...ALL_POSSIBLE_CRYPTO, ...ALL_POSSIBLE_FIAT];
+            allPossibleAssets.forEach(asset => {
+                const option = new Option(`${asset.name} (${asset.symbol})`, asset.symbol);
+                $(option).data('market', asset.market);
+                convertToAssetSelect.append(option);
+            });
+            convertToAssetSelect.select2({ templateResult: formatAssetOption, templateSelection: formatAssetOption });
+
+            if (userWallets.length > 0 && userWallets.some(w => parseFloat(w.balance) > 0)) {
+                convertFromAssetSelect.trigger('change'); // Trigger change to update balance and preview
+            } else {
+                 convertFromBalanceDisplay.textContent = 'No convertible assets';
+            }
+        }
+
+        function setupEventListeners() {
+            convertFromAssetSelect.on('change', handleInputChange);
+            convertToAssetSelect.on('change', handleInputChange);
+            convertAmountFromInput.addEventListener('input', handleInputChange);
+            executeConvertBtn.addEventListener('click', executeConversion);
+        }
+
+        function handleInputChange() {
+            const fromAsset = convertFromAssetSelect.val();
+            if (fromAsset) {
+                const selectedWallet = userWallets.find(w => w.shortName === fromAsset);
+                convertFromBalanceDisplay.textContent = selectedWallet ? formatNumber(selectedWallet.balance) : '0.00';
+            } else {
+                convertFromBalanceDisplay.textContent = '0.00';
+            }
+            calculateConversionPreview();
+        }
+
+        async function calculateConversionPreview() {
+            const fromAssetShortName = convertFromAssetSelect.val();
+            const toAssetShortName = convertToAssetSelect.val();
+            const amountFromStr = convertAmountFromInput.value;
+            
+            conversionRateDisplay.textContent = `1 ${fromAssetShortName || ''} = Loading... ${toAssetShortName || ''}`;
+            convertToAssetLabel.textContent = toAssetShortName || '';
+
+
+            if (!fromAssetShortName || !toAssetShortName || !amountFromStr || parseFloat(amountFromStr) <= 0) {
+                convertAmountToEstimatedDisplay.textContent = '0.00';
+                if (fromAssetShortName && toAssetShortName) {
+                     conversionRateDisplay.textContent = `1 ${fromAssetShortName} = N/A ${toAssetShortName}`;
+                } else {
+                     conversionRateDisplay.textContent = 'Select assets to see rate';
+                }
+                executeConvertBtn.disabled = true;
+                return;
+            }
+            
+            executeConvertBtn.disabled = true; // Disable until preview is calculated
+
+            try {
+                const amountFrom = parseFloat(amountFromStr);
+                
+                // Get USD value of 1 unit of From Asset
+                const fromAssetMarket = $(convertFromAssetSelect.find('option:selected')).data('market');
+                let usdValueFromAssetUnit = 0;
+                if (fromAssetMarket === 'Crypto') {
+                    usdValueFromAssetUnit = coinPricesUSD[fromAssetShortName.toLowerCase()]?.usd || 0;
+                } else if (fromAssetShortName === 'USD') {
+                    usdValueFromAssetUnit = 1;
+                } else { // Other Fiat
+                    const rate = await getBackendExchangeRate(fromAssetShortName); // TARGET per USD
+                    usdValueFromAssetUnit = rate ? 1 / rate : 0; // USD per TARGET
+                }
+
+                // Get USD value of 1 unit of To Asset
+                const toAssetMarket = $(convertToAssetSelect.find('option:selected')).data('market');
+                let usdValueToAssetUnit = 0;
+                if (toAssetMarket === 'Crypto') {
+                    usdValueToAssetUnit = coinPricesUSD[toAssetShortName.toLowerCase()]?.usd || 0;
+                } else if (toAssetShortName === 'USD') {
+                    usdValueToAssetUnit = 1;
+                } else { // Other Fiat
+                    const rate = await getBackendExchangeRate(toAssetShortName);
+                    usdValueToAssetUnit = rate ? 1 / rate : 0;
+                }
+
+                if (usdValueFromAssetUnit === 0 || usdValueToAssetUnit === 0) {
+                    throw new Error("Price information unavailable for one or both assets.");
+                }
+
+                const directRate = usdValueFromAssetUnit / usdValueToAssetUnit;
+                const estimatedAmountToReceive = amountFrom * directRate;
+
+                convertAmountToEstimatedDisplay.textContent = formatNumber(estimatedAmountToReceive, 8);
+                conversionRateDisplay.textContent = `1 ${fromAssetShortName} = ${formatNumber(directRate, 8)} ${toAssetShortName}`;
+                executeConvertBtn.disabled = false;
+
+            } catch (error) {
+                console.error("Error in conversion preview:", error);
+                convertAmountToEstimatedDisplay.textContent = 'Error';
+                conversionRateDisplay.textContent = `1 ${fromAssetShortName} = Error ${toAssetShortName}`;
+                executeConvertBtn.disabled = true;
+            }
+        }
+
+        async function executeConversion() {
+            const fromAsset = convertFromAssetSelect.val();
+            const toAsset = convertToAssetSelect.val();
+            const amount = convertAmountFromInput.value;
+
+            if (!fromAsset || !toAsset || !amount || parseFloat(amount) <= 0) {
+                showStatusMessage("Please fill all fields and enter a valid amount.", true);
+                return;
+            }
+            if (fromAsset === toAsset) {
+                showStatusMessage("Cannot convert an asset to itself.", true);
+                return;
+            }
+
+            executeConvertBtn.disabled = true;
+            executeConvertBtn.textContent = 'Converting...';
+
+            try {
+                const response = await fetch('/api/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Credentials': 'include' },
+                    body: JSON.stringify({
+                        from_asset_short_name: fromAsset,
+                        to_asset_short_name: toAsset,
+                        amount_from: amount
+                    })
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || `Conversion failed: ${response.statusText}`);
+                }
+                showStatusMessage(`Successfully converted ${formatNumber(result.amountConverted, 8)} ${result.fromAsset} to ${formatNumber(result.amountReceived, 8)} ${result.toAsset}.`, false);
+                
+                // Refresh user wallets and UI
+                await fetchUserWallets();
+                populateAssetDropdowns(); // This will re-trigger change and update balance/preview
+                convertAmountFromInput.value = ''; // Clear amount
+                convertAmountToEstimatedDisplay.textContent = '0.00';
+                // conversionRateDisplay will update via handleInputChange called by populateAssetDropdowns
+            } catch (error) {
+                console.error('Conversion execution error:', error);
+                showStatusMessage(`Error: ${error.message}`, true);
+            } finally {
+                executeConvertBtn.disabled = false;
+                executeConvertBtn.textContent = 'Convert';
+            }
+        }
+
+        function showStatusMessage(message, isError) {
+            convertStatusMessage.textContent = message;
+            convertStatusMessage.className = isError ? 'error' : 'success';
+            convertStatusMessage.style.display = 'block';
+            setTimeout(() => {
+                convertStatusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+    </script>
+</body>
+</html>

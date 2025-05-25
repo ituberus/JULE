@@ -2,15 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Deposit Page</title>
+  <title>Deposit Page - Dark Theme</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 20px;
-      background-color: #f9f9f9;
+      background-color: #04080B; /* THEMED: Dark background */
+      color: #E0E6ED; /* THEMED: Light text */
     }
     h1 {
       margin-bottom: 10px;
+      color: #E0E6ED; /* THEMED */
     }
     .top-bar {
       display: flex;
@@ -21,13 +23,14 @@
     .top-bar button {
       padding: 8px 16px;
       cursor: pointer;
-      background-color: #007BFF;
+      background-color: #1e90ff; /* THEMED: Accent button */
       border: none;
       color: #fff;
       border-radius: 4px;
+      transition: background-color 0.3s ease;
     }
     .top-bar button:hover {
-      background-color: #0056b3;
+      background-color: #187bcd; /* THEMED: Darker accent */
     }
 
     /* Search & Filter section */
@@ -38,8 +41,12 @@
     }
     .search-filter-container input[type="text"],
     .search-filter-container select {
-      padding: 5px;
+      padding: 8px; /* THEMED: Increased padding slightly */
       font-size: 14px;
+      background-color: #1A1E21; /* THEMED: Dark input background */
+      color: #E0E6ED; /* THEMED: Light text */
+      border: 1px solid #2A2E31; /* THEMED: Dark border */
+      border-radius: 4px;
     }
 
     /* Table styles */
@@ -47,32 +54,30 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 20px;
-      background-color: #fff;
+      background-color: #0A0E11; /* THEMED: Dark table background */
+      border: 1px solid #2A2E31; /* THEMED: Table border */
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
+      border: 1px solid #2A2E31; /* THEMED: Dark cell borders */
+      padding: 10px; /* THEMED: Increased padding */
       text-align: left;
       font-size: 14px;
+      word-wrap: break-word; /* For long remarks */
     }
     th {
-      background-color: #f2f2f2;
+      background-color: #1A1E21; /* THEMED: Dark header background */
+      color: #E0E6ED;
     }
     tr:hover {
-      background-color: #f9f9f9;
+      background-color: #1A1D21; /* THEMED: Darker hover */
     }
-    .status-pending {
-      color: #856404;
-      background-color: #fff3cd;
-    }
-    .status-canceled {
-      color: #721c24;
-      background-color: #f8d7da;
-    }
-    .status-confirmed {
-      color: #155724;
-      background-color: #d4edda;
-    }
+    /* Status styling adjusted for dark theme */
+    .status-pending_user_confirmation { color: #ffc107; } /* Amber */
+    .status-pending_approval { color: #ffc107; } /* Amber */
+    .status-confirmed { color: #4caf50; } /* Green */
+    .status-rejected_by_admin { color: #f44336; } /* Red */
+    .status-canceled { color: #9E9E9E; } /* Grey for system canceled */
+
 
     /* Modal (popup) styles */
     .modal-overlay {
@@ -81,30 +86,39 @@
       left: 0; 
       width: 100%; 
       height: 100%;
-      background-color: rgba(0,0,0,0.5);
+      background-color: rgba(0,0,0,0.7); /* THEMED: Darker overlay */
       display: none; 
       justify-content: center; 
       align-items: center;
       z-index: 999;
     }
     .modal {
-      background: #fff;
-      padding: 20px;
-      width: 400px;
+      background: #1A1E21; /* THEMED: Dark modal background */
+      color: #E0E6ED; /* THEMED: Light text in modal */
+      padding: 25px; /* THEMED: Increased padding */
+      width: 450px; /* THEMED: Slightly wider */
       border-radius: 5px;
+      border: 1px solid #2A2E31; /* THEMED: Dark border */
       position: relative;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.5); /* THEMED: Adjusted shadow */
     }
     .modal h2 {
       margin-top: 0;
+      margin-bottom: 20px; /* THEMED: Spacing */
+      color: #E0E6ED;
     }
     .modal .close-btn {
       position: absolute;
-      top: 10px; 
-      right: 10px;
+      top: 15px; 
+      right: 15px;
       background: transparent;
       border: none;
-      font-size: 18px;
+      font-size: 22px; /* THEMED: Larger close button */
+      color: #E0E6ED; /* THEMED */
       cursor: pointer;
+    }
+    .modal .close-btn:hover {
+        color: #ffc107; /* THEMED: Accent hover */
     }
     .modal form {
       display: flex;
@@ -114,44 +128,75 @@
     .modal label {
       font-weight: bold;
       margin-bottom: 5px;
+      color: #A0A6AD; /* THEMED: Lighter label text */
     }
     .modal select,
     .modal input[type="text"],
     .modal input[type="number"] {
       width: 100%;
-      padding: 6px;
+      padding: 10px; /* THEMED: Increased padding */
       box-sizing: border-box;
+      background-color: #0A0E11; /* THEMED: Darker input fields */
+      color: #E0E6ED; /* THEMED: Light text */
+      border: 1px solid #2A2E31; /* THEMED: Dark border */
+      border-radius: 4px;
+    }
+    .modal input[readonly] {
+        background-color: #04080B; /* THEMED: Even darker for readonly */
     }
     .copy-address-wrapper {
       display: flex;
-      gap: 5px;
+      gap: 8px; /* THEMED: Increased gap */
       align-items: center;
     }
-    .copy-address-wrapper input {
-      flex: 1;
+    .copy-address-wrapper button { /* Style for copy button */
+        padding: 8px 12px;
+        background-color: #2A2E31;
+        color: #E0E6ED;
+        border: 1px solid #4b545e;
+        border-radius: 4px;
+        cursor: pointer;
     }
-    .modal button {
+    .copy-address-wrapper button:hover {
+        background-color: #4b545e;
+    }
+    .modal button[type="submit"] { /* Main submit button */
       align-self: flex-end;
-      padding: 8px 16px;
+      padding: 10px 20px; /* THEMED: Increased padding */
       cursor: pointer;
-      background-color: #28a745;
+      background-color: #1e90ff; /* THEMED: Accent color */
       color: #fff;
       border: none;
       border-radius: 4px;
+      margin-top: 10px; /* THEMED: Added margin */
     }
-    .modal button:hover {
-      background-color: #218838;
+    .modal button[type="submit"]:hover {
+      background-color: #187bcd; /* THEMED: Darker accent */
     }
     .confirmation-section {
-      margin-top: 15px;
+      margin-top: 20px; /* THEMED: Increased margin */
       padding: 15px;
-      border: 1px solid #ddd;
+      border: 1px solid #2A2E31; /* THEMED: Dark border */
       border-radius: 5px;
-      background-color: #f7f7f7;
+      background-color: #0A0E11; /* THEMED: Dark background */
       display: none;
     }
     .confirmation-section p {
-      margin: 5px 0;
+      margin: 8px 0; /* THEMED: Increased margin */
+      color: #E0E6ED;
+    }
+    .confirmation-section strong {
+        color: #1e90ff; /* THEMED: Accent for strong text */
+    }
+    .confirmation-section button { /* Copy button in confirmation */
+        padding: 6px 10px;
+        font-size: 0.9em;
+        background-color: #2A2E31;
+        color: #E0E6ED;
+        border: 1px solid #4b545e;
+    }
+    .confirmation-section button:hover {
+        background-color: #4b545e;
     }
 
     /* Loading overlay */
@@ -161,19 +206,19 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(4, 8, 11, 0.85); /* THEMED: Darker overlay */
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 1000;
       font-size: 24px;
-      color: #333;
+      color: #E0E6ED; /* THEMED: Light text */
     }
 
     /* Spinner */
     .spinner {
-      border: 8px solid #f3f3f3;
-      border-top: 8px solid #007BFF;
+      border: 8px solid #2A2E31; /* THEMED: Darker base for spinner */
+      border-top: 8px solid #1e90ff; /* THEMED: Accent color for spinner animation */
       border-radius: 50%;
       width: 60px;
       height: 60px;
@@ -209,9 +254,11 @@
     <input type="text" id="searchInput" placeholder="Search by reference/method/type..." />
     <select id="statusFilter">
       <option value="">All Statuses</option>
-      <option value="pending confirmation">Pending</option>
-      <option value="canceled">Canceled</option>
-      <option value="confirmed">Confirmed</option>
+      <option value="pending_user_confirmation">Pending User Confirmation</option>
+      <option value="pending_approval">Pending Admin Approval</option>
+      <option value="confirmed">Confirmed (Approved)</option>
+      <option value="rejected_by_admin">Rejected by Admin</option>
+      <option value="canceled">Canceled (System)</option>
     </select>
   </div>
 
@@ -223,9 +270,12 @@
         <th>Reference</th>
         <th>Method</th>
         <th>Type</th>
-        <th>Amount (Crypto)</th>
+        <th>Amount</th>
         <th id="tableTotalHeader">Total (Local)</th>
-        <th>Status</th>
+        <th>User Status</th>
+        <th>Admin Status</th>
+        <th>Approved Amount</th>
+        <th>Admin Remarks</th>
       </tr>
     </thead>
     <tbody>
@@ -282,7 +332,8 @@
         <p><strong>Amount (Crypto):</strong> <span id="confirmAmountCrypto"></span></p>
         <p><strong>Local Currency:</strong> <span id="confirmAmountLocal"></span></p>
         <p><strong>Address:</strong> <span id="confirmAddress"></span> <button id="copyConfirmAddressBtn">Copy</button></p>
-        <p>Status: <strong>Pending Confirmation</strong></p>
+        <p>User Status: <strong>Pending User Confirmation</strong></p>
+        <p>Admin Status: <strong>Pending Approval</strong></p>
         <p>You may now send your crypto to the wallet address above.</p>
         <p>Close this popup to see the new deposit in your table.</p>
       </div>

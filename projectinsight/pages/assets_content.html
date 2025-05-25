@@ -1,0 +1,251 @@
+<div class="content-grid">
+    <h2 style="color: #E0E6ED; border-bottom: 1px solid #2A2E31; padding-bottom: 10px; margin-bottom: 20px;">Your Assets</h2>
+
+    <div id="assets-summary-section" style="margin-bottom: 30px; padding: 15px; background-color: #0A0E11; border-radius: 5px; border: 1px solid #2A2E31;">
+        <h3 style="color: #E0E6ED; margin-bottom: 10px;">Portfolio Overview</h3>
+        <p style="color: #A0A6AD; font-size: 1.1em;">
+            Total Estimated Value: 
+            <strong id="total-assets-value" style="color: #08a88a;">Loading...</strong> 
+            <span id="total-assets-currency" style="color: #08a88a;"></span>
+        </p>
+    </div>
+
+    <div id="assets-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+        <!-- Asset items will be populated here by JavaScript -->
+        <p id="assets-loading-message" style="color: #A0A6AD; text-align: center; grid-column: 1 / -1;">Loading your assets...</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const assetsListContainer = document.getElementById('assets-list-container');
+    const totalAssetsValueDisplay = document.getElementById('total-assets-value');
+    const totalAssetsCurrencyDisplay = document.getElementById('total-assets-currency');
+    const assetsLoadingMessage = document.getElementById('assets-loading-message');
+
+    let currentUser = null;
+    let userWallets = []; // { userId, coinName, shortName, walletAddress, privateKey, balance }
+    let coinPricesUSD = {}; // { bitcoin: { usd: 50000 }, ethereum: { usd: 4000 } }
+    let userAccountCurrency = 'USD';
+
+    // --- Utility & Helper Functions ---
+    function formatNumber(num, decimals = 2) {
+        if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(decimals);
+        return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 8 });
+    }
+
+    const cryptoLogos = { BTC: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png", ETH: "https://assets.coingecko.com/coins/images/279/large/ethereum.png", USDT: "https://assets.coingecko.com/coins/images/325/large/Tether.png", USDC: "https://assets.coingecko.com/coins/images/6319/large/usdc.png", LTC: "https://assets.coingecko.com/coins/images/2/large/litecoin.png" /* Add more */ };
+    const fiatIcons = { USD: "attach_money", EUR: "euro_symbol", GBP: "currency_pound" /* Add more */ };
+    const coinGeckoMap = { // From trade_widget.html (or a shared config)
+        BTC: 'bitcoin', ETH: 'ethereum', LTC: 'litecoin', XRP: 'ripple', ADA: 'cardano',
+        SOL: 'solana', MATIC: 'matic-network', DOGE: 'dogecoin', DOT: 'polkadot',
+        BCH: 'bitcoin-cash', AVAX: 'avalanche-2', USDT: 'tether', USDC: 'usd-coin',
+        // Add other mappings from your project if necessary
+    };
+
+
+    function getIconHtml(shortName, isFiat) {
+        let iconSrc = '';
+        let isMaterialIcon = false;
+        if (isFiat) {
+            iconSrc = fiatIcons[shortName.toUpperCase()] || "monetization_on"; // Default Material icon
+            isMaterialIcon = true;
+        } else {
+            iconSrc = cryptoLogos[shortName.toUpperCase()] || `https://cryptoicon-api.vercel.app/api/icon/${shortName.toLowerCase()}`;
+        }
+
+        if (isMaterialIcon) {
+            return `<span class="material-icons" style="font-size: 24px; vertical-align: middle; margin-right: 10px; color: #08a88a;">${iconSrc}</span>`;
+        } else {
+            return `<img src="${iconSrc}" alt="${shortName}" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 10px; border-radius: 50%;">`;
+        }
+    }
+    
+    // --- Data Fetching Functions ---
+    async function checkAuth() {
+        try {
+            const res = await fetch('/api/auth/me', { credentials: 'include' });
+            if (!res.ok) {
+                console.error('User not authenticated, redirecting.');
+                if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                throw new Error('Not authenticated');
+            }
+            const data = await res.json();
+            currentUser = data.user;
+            userAccountCurrency = currentUser.accountCurrency || 'USD';
+        } catch (e) {
+            console.error("checkAuth error:", e.message);
+            currentUser = null; userAccountCurrency = 'USD';
+            if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+            throw e; // Re-throw to stop further execution in init
+        }
+    }
+
+    async function fetchUserWallets() {
+        if (!currentUser) return;
+        try {
+            const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+            userWallets = await res.json();
+        } catch (e) { console.error("Failed to fetch user wallets", e); userWallets = []; }
+    }
+
+    async function fetchCoinPricesUSD() {
+        try {
+            const res = await fetch('/api/coin-prices', { credentials: 'include' });
+            coinPricesUSD = await res.json();
+        } catch (e) { console.error("Failed to fetch coin prices", e); coinPricesUSD = {}; }
+    }
+
+    async function getBackendExchangeRate(targetCurrency) {
+        if (targetCurrency.toUpperCase() === 'USD') return 1.0;
+        try {
+            const response = await fetch(`/api/exchange-rate/${targetCurrency}`, {credentials: 'include'});
+            if (!response.ok) { console.error(`Rate for ${targetCurrency} not found`); return null; }
+            const data = await response.json();
+            return data.rate; // Rate is TARGET per USD
+        } catch (error) {
+            console.error(`Error fetching exchange rate for ${targetCurrency}:`, error);
+            return null;
+        }
+    }
+
+    // --- Core Logic ---
+    async function displayAssets() {
+        if (!assetsListContainer || !totalAssetsValueDisplay || !totalAssetsCurrencyDisplay || !assetsLoadingMessage) return;
+        
+        assetsLoadingMessage.style.display = 'block';
+        assetsListContainer.innerHTML = ''; // Clear previous content except loading message
+        let totalPortfolioValue = 0;
+
+        for (const wallet of userWallets) {
+            const balance = parseFloat(wallet.balance);
+            if (isNaN(balance) || balance === 0) continue; // Skip zero balance wallets
+
+            let valueInUSD = 0;
+            const isFiat = fiatIcons.hasOwnProperty(wallet.shortName.toUpperCase());
+
+            if (isFiat) {
+                if (wallet.shortName.toUpperCase() === 'USD') {
+                    valueInUSD = balance;
+                } else {
+                    const rateToUSD = await getBackendExchangeRate(wallet.shortName.toUpperCase()); // This gets TARGET per USD
+                    if (rateToUSD) valueInUSD = balance / rateToUSD; // Convert asset to USD
+                }
+            } else { // Crypto
+                const coinGeckoId = coinGeckoMap[wallet.shortName.toUpperCase()] || wallet.shortName.toLowerCase();
+                const priceData = coinPricesUSD[coinGeckoId];
+                if (priceData && priceData.usd) {
+                    valueInUSD = balance * priceData.usd;
+                }
+            }
+            
+            let valueInUserCurrency = valueInUSD;
+            if (userAccountCurrency.toUpperCase() !== 'USD') {
+                const conversionRate = await getBackendExchangeRate(userAccountCurrency); // UserCurrency per USD
+                if (conversionRate) {
+                    valueInUserCurrency = valueInUSD * conversionRate;
+                } else { // If conversion to user currency fails, show in USD and note it
+                    valueInUserCurrency = valueInUSD; 
+                    // console.warn(`Could not convert ${wallet.shortName} to ${userAccountCurrency}, showing USD value.`);
+                }
+            }
+            totalPortfolioValue += valueInUserCurrency;
+
+            const assetItem = document.createElement('div');
+            assetItem.className = 'asset-item';
+            assetItem.style.cssText = "background-color: #1A1E21; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #2A2E31; display: flex; flex-direction: column;";
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.style.display = 'flex';
+            infoDiv.style.alignItems = 'center';
+            infoDiv.innerHTML = `
+                ${getIconHtml(wallet.shortName, isFiat)}
+                <div>
+                    <h4 class="asset-name" style="color: #E0E6ED; margin: 0 0 5px 0;">${wallet.coinName} (${wallet.shortName})</h4>
+                    <p class="asset-balance" style="color: #A0A6AD; margin:0 0 5px 0; font-size:0.9em;">Balance: ${formatNumber(balance, 8)}</p>
+                    <p class="asset-value" style="color: #A0A6AD; margin:0; font-size:0.9em;">Value: ${formatNumber(valueInUserCurrency, 2)} ${userAccountCurrency}</p>
+                </div>
+            `;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'asset-actions';
+            actionsDiv.style.marginTop = '15px';
+            actionsDiv.style.display = 'flex';
+            actionsDiv.style.gap = '10px';
+
+            const depositBtn = document.createElement('button');
+            depositBtn.className = 'button asset-action-btn';
+            depositBtn.textContent = 'Deposit';
+            depositBtn.dataset.action = 'deposit';
+            depositBtn.dataset.asset = wallet.shortName;
+            // Disable deposit for non-BTC/ETH/USDT/USDC for now, or non-primary fiat
+            if (!isFiat && !['BTC', 'ETH', 'USDT', 'USDC'].includes(wallet.shortName.toUpperCase())) {
+                 // depositBtn.disabled = true; depositBtn.style.opacity = 0.5;
+            } else if (isFiat && wallet.shortName.toUpperCase() !== userAccountCurrency) {
+                 // depositBtn.disabled = true; depositBtn.style.opacity = 0.5; // Example: only allow deposit of primary fiat
+            }
+
+
+            const withdrawBtn = document.createElement('button');
+            withdrawBtn.className = 'button asset-action-btn';
+            withdrawBtn.textContent = 'Withdraw';
+            withdrawBtn.dataset.action = 'withdraw';
+            withdrawBtn.dataset.asset = wallet.shortName;
+
+            const convertBtn = document.createElement('button');
+            convertBtn.className = 'button asset-action-btn';
+            convertBtn.textContent = 'Convert';
+            convertBtn.dataset.action = 'convert';
+            convertBtn.dataset.asset = wallet.shortName;
+
+            actionsDiv.appendChild(depositBtn);
+            actionsDiv.appendChild(withdrawBtn);
+            actionsDiv.appendChild(convertBtn);
+            
+            assetItem.appendChild(infoDiv);
+            assetItem.appendChild(actionsDiv);
+            assetsListContainer.appendChild(assetItem);
+        }
+        
+        assetsLoadingMessage.style.display = 'none';
+        if (userWallets.filter(w => parseFloat(w.balance) > 0).length === 0) {
+            assetsListContainer.innerHTML = '<p style="color: #A0A6AD; text-align: center;">You currently have no assets with a balance.</p>';
+        }
+
+        totalAssetsValueDisplay.textContent = formatNumber(totalPortfolioValue, 2);
+        totalAssetsCurrencyDisplay.textContent = userAccountCurrency;
+
+        // Add event listeners for action buttons
+        document.querySelectorAll('.asset-action-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                const assetCode = e.target.dataset.asset;
+                if (typeof loadPage === 'function') {
+                    if (action === 'deposit') loadPage('pages/deposit_content.html'); // Consider passing assetCode if deposit page can use it
+                    else if (action === 'withdraw') loadPage('pages/withdraw_content.html'); // Same
+                    else if (action === 'convert') loadPage(`pages/convert_content.html?from=${assetCode}`);
+                } else {
+                    console.error('loadPage function is not defined.');
+                }
+            });
+        });
+    }
+
+    // Initialization sequence
+    async function init() {
+        try {
+            await checkAuth();
+            await Promise.all([fetchUserWallets(), fetchCoinPricesUSD()]); // Fetch exchange rates on demand within displayAssets
+            await displayAssets();
+        } catch (error) {
+            console.error("Initialization failed:", error);
+            if (assetsLoadingMessage) assetsLoadingMessage.textContent = 'Failed to load asset information.';
+            if (totalAssetsValueDisplay) totalAssetsValueDisplay.textContent = 'Error';
+        }
+    }
+
+    init();
+});
+</script>
+</body>
+</html>

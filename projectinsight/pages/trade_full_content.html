@@ -1,0 +1,225 @@
+<div class="content-grid">
+    <h2 style="color: #E0E6ED; border-bottom: 1px solid #2A2E31; padding-bottom: 10px; margin-bottom: 20px;">Trade Center</h2>
+
+    <div id="trade-page-layout" style="display: flex; flex-wrap: wrap; gap: 20px;">
+        <!-- Left Column: Chart -->
+        <div id="full-trade-chart-container-wrapper" style="flex: 1 1 60%; min-width: 400px; background-color: #0A0E11; padding: 15px; border-radius: 5px; border: 1px solid #2A2E31;">
+            <h3 style="color: #E0E6ED; margin-bottom: 10px;">Market Chart</h3>
+            <div id="full-trade-chart-container" style="height: 500px; overflow: hidden;">
+                <!-- Chart iframe will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Right Column: Trading Widget -->
+        <div id="full-trade-widget-container-wrapper" style="flex: 1 1 35%; min-width: 300px; background-color: #0A0E11; padding: 15px; border-radius: 5px; border: 1px solid #2A2E31;">
+            <h3 style="color: #E0E6ED; margin-bottom: 10px;">Trade Terminal</h3>
+            <div id="full-trade-widget-container" style="height: 600px; overflow: hidden;"> 
+                <!-- Trading widget iframe will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Trades Section -->
+    <div id="trades-section" style="margin-top: 30px; background-color: #0A0E11; padding: 15px; border-radius: 5px; border: 1px solid #2A2E31;">
+        <div class="trade-tabs" style="display: flex; border-bottom: 1px solid #2A2E31; margin-bottom: 15px;">
+            <button class="trade-tab-button active" data-tab="open-trades-content" style="padding: 10px 15px; cursor: pointer; background-color: #1A1E21; border: none; color: #E0E6ED; font-size: 1em;">Open Trades</button>
+            <button class="trade-tab-button" data-tab="closed-trades-content" style="padding: 10px 15px; cursor: pointer; background-color: #0A0E11; border: none; color: #A0A6AD; font-size: 1em;">Closed Trades</button>
+        </div>
+
+        <!-- Open Trades Tab Content -->
+        <div id="open-trades-content" class="trade-tab-content active">
+            <h3 style="color: #E0E6ED; margin-bottom: 10px;">Your Open Positions</h3>
+            <div style="overflow-x: auto;">
+                <table id="open-trades-table" style="width: 100%; border-collapse: collapse; color: #E0E6ED;">
+                    <thead>
+                        <tr style="background-color: #1A1E21;">
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Symbol</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Direction</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Amount</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Entry Price</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Leverage</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">SL</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">TP</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Margin</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Opened At</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="10" style="padding: 10px; text-align: center; color: #A0A6AD;">Loading open trades...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Closed Trades Tab Content -->
+        <div id="closed-trades-content" class="trade-tab-content" style="display: none;">
+            <h3 style="color: #E0E6ED; margin-bottom: 10px;">Your Trade History</h3>
+            <div style="overflow-x: auto;">
+                <table id="closed-trades-table" style="width: 100%; border-collapse: collapse; color: #E0E6ED;">
+                    <thead>
+                        <tr style="background-color: #1A1E21;">
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Symbol</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Direction</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Amount</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Entry Price</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Exit Price</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Leverage</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">P/L</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Closed At</th>
+                            <th style="padding: 8px; border: 1px solid #2A2E31; text-align: left;">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="9" style="padding: 10px; text-align: center; color: #A0A6AD;">Loading closed trades...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const chartContainer = document.getElementById('full-trade-chart-container');
+    const widgetContainer = document.getElementById('full-trade-widget-container');
+    const openTradesTableBody = document.querySelector('#open-trades-table tbody');
+    const closedTradesTableBody = document.querySelector('#closed-trades-table tbody');
+    const tabButtons = document.querySelectorAll('.trade-tab-button');
+    const tabContents = document.querySelectorAll('.trade-tab-content');
+
+    // Embed Widgets
+    if (chartContainer) {
+        chartContainer.innerHTML = '<iframe src="pages/themed_chart_widget.html" style="width:100%; height:100%; border:none;"></iframe>';
+    }
+    if (widgetContainer) {
+        widgetContainer.innerHTML = '<iframe src="trade_widget.html" style="width:100%; height:100%; border:none;"></iframe>';
+    }
+
+    // Tab Functionality
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.dataset.tab;
+
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.backgroundColor = '#0A0E11'; // Inactive tab bg
+                btn.style.color = '#A0A6AD'; // Inactive tab text
+            });
+            button.classList.add('active');
+            button.style.backgroundColor = '#1A1E21'; // Active tab bg
+            button.style.color = '#E0E6ED'; // Active tab text
+
+
+            tabContents.forEach(content => {
+                if (content.id === targetTab) {
+                    content.style.display = 'block';
+                } else {
+                    content.style.display = 'none';
+                }
+            });
+            // Optional: Fetch trades when tab is clicked or fetch both initially
+            // if (targetTab === 'open-trades-content') fetchOpenTrades();
+            // if (targetTab === 'closed-trades-content') fetchClosedTrades();
+        });
+    });
+
+    // Helper to format date (can be more sophisticated)
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleString();
+    }
+    
+    // Helper to format numbers
+    function formatNumber(num, decimals = 2) {
+        if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(decimals);
+        return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 8 });
+    }
+
+
+    // Fetch and Display Open Trades
+    async function fetchOpenTrades() {
+        if (!openTradesTableBody) return;
+        openTradesTableBody.innerHTML = '<tr><td colspan="10" style="padding: 10px; text-align: center; color: #A0A6AD;">Loading open trades...</td></tr>';
+        try {
+            const response = await fetch('/api/trades/open', { credentials: 'include' });
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            const trades = await response.json();
+            openTradesTableBody.innerHTML = ''; // Clear loading message
+            if (trades.length === 0) {
+                openTradesTableBody.innerHTML = '<tr><td colspan="10" style="padding: 10px; text-align: center; color: #A0A6AD;">No open trades found.</td></tr>';
+                return;
+            }
+            trades.forEach(trade => {
+                const row = openTradesTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${trade.symbol}</td>
+                    <td>${trade.direction}</td>
+                    <td>${formatNumber(trade.amount, 8)}</td>
+                    <td>${formatNumber(trade.entry_price)}</td>
+                    <td>${trade.leverage}x</td>
+                    <td>${trade.stop_loss_price ? formatNumber(trade.stop_loss_price) : 'N/A'}</td>
+                    <td>${trade.take_profit_price ? formatNumber(trade.take_profit_price) : 'N/A'}</td>
+                    <td>${trade.margin ? formatNumber(trade.margin) : 'N/A'}</td>
+                    <td>${formatDate(trade.open_timestamp)}</td>
+                    <td>${trade.status}</td>
+                `;
+            });
+        } catch (error) {
+            console.error('Error fetching open trades:', error);
+            openTradesTableBody.innerHTML = `<tr><td colspan="10" style="padding: 10px; text-align: center; color: #ff6b6b;">Error loading open trades: ${error.message}</td></tr>`;
+        }
+    }
+
+    // Fetch and Display Closed Trades
+    async function fetchClosedTrades() {
+        if (!closedTradesTableBody) return;
+        closedTradesTableBody.innerHTML = '<tr><td colspan="9" style="padding: 10px; text-align: center; color: #A0A6AD;">Loading closed trades...</td></tr>';
+        try {
+            const response = await fetch('/api/trades/closed', { credentials: 'include' });
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            const trades = await response.json();
+            closedTradesTableBody.innerHTML = ''; // Clear loading message
+            if (trades.length === 0) {
+                closedTradesTableBody.innerHTML = '<tr><td colspan="9" style="padding: 10px; text-align: center; color: #A0A6AD;">No closed trades found.</td></tr>';
+                return;
+            }
+            trades.forEach(trade => {
+                const row = closedTradesTableBody.insertRow();
+                const profitLossClass = parseFloat(trade.profit_loss) >= 0 ? 'color: #4caf50;' : 'color: #f44336;';
+                row.innerHTML = `
+                    <td>${trade.symbol}</td>
+                    <td>${trade.direction}</td>
+                    <td>${formatNumber(trade.amount, 8)}</td>
+                    <td>${formatNumber(trade.entry_price)}</td>
+                    <td>${trade.exit_price ? formatNumber(trade.exit_price) : 'N/A'}</td>
+                    <td>${trade.leverage}x</td>
+                    <td style="${profitLossClass}">${trade.profit_loss ? formatNumber(trade.profit_loss) : 'N/A'}</td>
+                    <td>${formatDate(trade.close_timestamp)}</td>
+                    <td>${trade.closing_reason || 'N/A'}</td>
+                `;
+            });
+        } catch (error) {
+            console.error('Error fetching closed trades:', error);
+            closedTradesTableBody.innerHTML = `<tr><td colspan="9" style="padding: 10px; text-align: center; color: #ff6b6b;">Error loading closed trades: ${error.message}</td></tr>`;
+        }
+    }
+
+    // Initial data fetch
+    async function initializePage() {
+        // No explicit checkAuth needed here if endpoints are protected by requireAuth
+        // and page load itself is handled by main_app.js which might have its own auth checks.
+        // If direct access to this page is possible without main_app.js, then checkAuth would be needed.
+        await fetchOpenTrades();
+        await fetchClosedTrades();
+    }
+
+    initializePage();
+});
+</script>
+</body>
+</html>

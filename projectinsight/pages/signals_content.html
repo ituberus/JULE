@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Signals</title>
+    <style>
+        /* Basic dark theme styling - can be expanded or use global_theme.css classes */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #04080B; 
+            color: #E0E6ED;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .content-grid {
+            background-color: #0A0E11;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+            max-width: 1200px; /* Max width for the content */
+            margin: auto; /* Center it */
+        }
+        h2, h3 {
+            color: #E0E6ED;
+            border-bottom: 1px solid #2A2E31;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .user-balances-section, .available-signals-section, .my-signals-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #1A1E21; 
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+        }
+        .user-balances-section p {
+            margin: 5px 0;
+            font-size: 1em;
+        }
+        .user-balances-section strong {
+            color: #08a88a;
+        }
+        .signal-plans-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Slightly wider cards */
+            gap: 20px;
+        }
+        .signal-plan-card {
+            background-color: #0A0E11;
+            border: 1px solid #2A2E31;
+            border-radius: 5px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .signal-plan-card h4 {
+            color: #1e90ff; 
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        .signal-plan-card p {
+            font-size: 0.9em;
+            color: #A0A6AD;
+            margin-bottom: 8px;
+        }
+        .signal-plan-card .plan-details {
+            flex-grow: 1;
+            margin-bottom:15px;
+        }
+        .signal-plan-card .plan-price-info { 
+            font-size: 0.9em;
+            color: #E0E6ED;
+            margin-bottom: 10px;
+        }
+        .signal-plan-card .plan-price-info strong {
+            color: #08a88a;
+        }
+        .signal-plan-card input[type="number"] {
+            width: 100%; /* Full width of card */
+            padding: 8px;
+            margin-bottom: 10px;
+            background-color: #1A1E21;
+            color: #E0E6ED;
+            border: 1px solid #2A2E31;
+            border-radius: 4px;
+            font-size: 0.95em;
+            box-sizing: border-box;
+        }
+        .signal-plan-card .subscribe-btn {
+            padding: 10px 15px;
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            display: block;
+            width: 100%;
+            margin-top: auto; 
+        }
+        .signal-plan-card .subscribe-btn:hover:not(:disabled) {
+            background-color: #187bcd;
+        }
+         .signal-plan-card .subscribe-btn:disabled {
+            background-color: #2A2E31;
+            color: #555;
+            cursor: not-allowed;
+        }
+        .signals-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .signals-table th, .signals-table td {
+            border: 1px solid #2A2E31;
+            padding: 10px;
+            text-align: left;
+        }
+        .signals-table th {
+            background-color: #1A1E21;
+        }
+        
+        #statusMessage, #conversionPrompt {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            display: none; 
+        }
+        #statusMessage.success, #conversionPrompt.info {
+            background-color: rgba(76, 175, 80, 0.1); /* Lighter green */
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+        #statusMessage.error {
+            background-color: rgba(244, 67, 54, 0.1); /* Lighter red */
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+        #conversionPrompt a {
+            color: #1e90ff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-grid">
+        <h2>Trading Signals</h2>
+
+        <div class="user-balances-section">
+            <h3>Your Relevant Balances</h3>
+            <div id="signal-plan-currency-balances">
+                <p style="color: #A0A6AD;">Loading balances...</p>
+            </div>
+        </div>
+
+        <div class="available-signals-section">
+            <h3>Available Signal Plans</h3>
+            <div id="signal-plans-container" class="signal-plans-container">
+                <p id="signal-plans-loading-message" style="color: #A0A6AD;">Loading signal plans...</p>
+            </div>
+        </div>
+        
+        <div id="conversionPrompt" class="info" style="display:none;">
+            Your balance in the required currency is insufficient. 
+            Please <a onclick="if(typeof loadPage === 'function') loadPage('pages/convert_content.html'); else console.error('loadPage not defined');">visit the Convert Page</a> to convert funds.
+        </div>
+        <div id="statusMessage" style="display: none;"></div>
+
+
+        <div class="my-signals-section">
+            <h3>My Active Signals</h3>
+            <div style="overflow-x: auto;">
+                <table id="my-signals-table" class="signals-table">
+                    <thead>
+                        <tr>
+                            <th>Plan Name</th>
+                            <th>Subscribed At</th>
+                            <th>Deposited Balance</th>
+                            <th>Currency</th>
+                            <th>Performance Metric</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align:center; color: #A0A6AD;">Loading your active signals...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let userWallets = []; 
+        let userAccountCurrency = 'USD';
+
+        const signalPlansContainer = document.getElementById('signal-plans-container');
+        const signalPlansLoadingMessage = document.getElementById('signal-plans-loading-message');
+        const mySignalsTableBody = document.querySelector('#my-signals-table tbody');
+        const planCurrencyBalancesDisplay = document.getElementById('signal-plan-currency-balances');
+        const statusMessageDisplay = document.getElementById('statusMessage');
+        const conversionPrompt = document.getElementById('conversionPrompt');
+
+        function formatNumber(num, decimals = 2) {
+            if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(decimals);
+            return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 8 });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            return new Date(dateString).toLocaleDateString();
+        }
+
+        function showStatusMessage(message, isError) {
+            statusMessageDisplay.textContent = message;
+            statusMessageDisplay.className = isError ? 'error' : 'success';
+            statusMessageDisplay.style.display = 'block';
+            setTimeout(() => {
+                statusMessageDisplay.style.display = 'none';
+            }, 5000);
+        }
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!res.ok) { 
+                    if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                    throw new Error('Not authenticated'); 
+                }
+                const data = await res.json();
+                currentUser = data.user;
+                userAccountCurrency = currentUser.accountCurrency || 'USD';
+            } catch (e) { 
+                currentUser = null; userAccountCurrency = 'USD';
+                if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                throw e;
+            }
+        }
+
+        async function fetchUserWallets() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+                userWallets = await res.json();
+            } catch (e) { console.error("Failed to fetch user wallets", e); userWallets = []; }
+        }
+        
+        function displayRelevantBalances(planCurrencies = new Set()) {
+            if (!planCurrencyBalancesDisplay) return;
+            planCurrencyBalancesDisplay.innerHTML = ''; 
+
+            const currenciesToDisplay = new Set(planCurrencies);
+            // Add any other specific currencies you want to always show, e.g., user's primary account currency
+            // currenciesToDisplay.add(userAccountCurrency.toUpperCase()); 
+            
+            if (currenciesToDisplay.size === 0) {
+                 planCurrencyBalancesDisplay.innerHTML = '<p style="color: #A0A6AD;">No specific currency balances to show for available plans.</p>';
+                 return;
+            }
+
+            currenciesToDisplay.forEach(currency => {
+                const wallet = userWallets.find(w => w.shortName.toUpperCase() === currency.toUpperCase());
+                const balance = wallet ? parseFloat(wallet.balance) : 0;
+                const p = document.createElement('p');
+                p.innerHTML = `${currency} Balance: <strong style="color: #08a88a;">${formatNumber(balance)}</strong>`;
+                planCurrencyBalancesDisplay.appendChild(p);
+            });
+        }
+
+        async function fetchAndDisplayActiveSignalPlans() {
+            if (!signalPlansContainer || !signalPlansLoadingMessage) return;
+            signalPlansLoadingMessage.style.display = 'block';
+            signalPlansContainer.innerHTML = ''; 
+            
+            try {
+                const response = await fetch('/api/signal-plans'); // Public endpoint for active plans
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const plans = await response.json();
+
+                if (plans.length === 0) {
+                    signalPlansContainer.innerHTML = '<p style="color: #A0A6AD;">No signal plans currently available.</p>';
+                } else {
+                    const planCurrenciesForBalanceDisplay = new Set();
+                    plans.forEach(plan => planCurrenciesForBalanceDisplay.add(plan.currency.toUpperCase()));
+                    displayRelevantBalances(planCurrenciesForBalanceDisplay);
+
+                    plans.forEach(plan => {
+                        const card = document.createElement('div');
+                        card.className = 'signal-plan-card';
+                        card.innerHTML = `
+                            <h4>${plan.name}</h4>
+                            <div class="plan-details">
+                                <p>${plan.description || 'No description available.'}</p>
+                                <p class="plan-price-info">Currency: <strong>${plan.currency}</strong></p>
+                                <p class="plan-price-info">Min Deposit: <strong>${formatNumber(plan.min_deposit)} ${plan.currency}</strong></p>
+                                <p class="plan-price-info">Max Deposit: <strong>${plan.max_deposit === 0 ? 'No Limit' : formatNumber(plan.max_deposit) + ' ' + plan.currency}</strong></p>
+                                <p>Performance: <strong>${plan.performance_metric || 'N/A'}</strong></p>
+                            </div>
+                            <input type="number" class="deposit-amount-input" placeholder="Enter amount in ${plan.currency}" step="any" min="${plan.min_deposit > 0 ? plan.min_deposit : '0.01'}">
+                            <button class="subscribe-btn" data-plan-id="${plan.id}" data-plan-currency="${plan.currency.toUpperCase()}" data-min-deposit="${plan.min_deposit}" data-max-deposit="${plan.max_deposit}">Subscribe & Deposit</button>
+                        `;
+                        signalPlansContainer.appendChild(card);
+                    });
+                    document.querySelectorAll('.subscribe-btn').forEach(button => {
+                        button.addEventListener('click', handleSignalSubscription);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching signal plans:', error);
+                signalPlansContainer.innerHTML = `<p style="color: #ff6b6b;">Error loading signal plans: ${error.message}</p>`;
+            } finally {
+                signalPlansLoadingMessage.style.display = 'none';
+            }
+        }
+
+        async function handleSignalSubscription(event) {
+            if (!currentUser) { 
+                showStatusMessage('Please log in to subscribe.', true);
+                return;
+            }
+            conversionPrompt.style.display = 'none'; // Hide any previous prompt
+
+            const button = event.target;
+            const planId = button.dataset.planId;
+            const planCurrency = button.dataset.planCurrency;
+            const minDeposit = parseFloat(button.dataset.minDeposit);
+            const maxDeposit = parseFloat(button.dataset.maxDeposit);
+            
+            const amountInput = button.parentElement.querySelector('.deposit-amount-input');
+            const depositAmount = parseFloat(amountInput.value);
+
+            if (isNaN(depositAmount) || depositAmount <= 0) {
+                showStatusMessage('Please enter a valid positive amount to deposit.', true);
+                return;
+            }
+            if (minDeposit > 0 && depositAmount < minDeposit) {
+                showStatusMessage(`Deposit amount must be at least ${formatNumber(minDeposit)} ${planCurrency}.`, true);
+                return;
+            }
+            if (maxDeposit > 0 && depositAmount > maxDeposit) {
+                showStatusMessage(`Deposit amount cannot exceed ${formatNumber(maxDeposit)} ${planCurrency}.`, true);
+                return;
+            }
+
+            const paymentWallet = userWallets.find(w => w.shortName.toUpperCase() === planCurrency);
+            const balance = paymentWallet ? parseFloat(paymentWallet.balance) : 0;
+
+            if (balance < depositAmount) {
+                showStatusMessage(`Insufficient ${planCurrency} balance. Required: ${formatNumber(depositAmount)}, Available: ${formatNumber(balance)}.`, true);
+                conversionPrompt.style.display = 'block';
+                return;
+            }
+
+            if (!confirm(`Confirm deposit of ${formatNumber(depositAmount)} ${planCurrency} into this signal plan?`)) return;
+
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            try {
+                const response = await fetch(`/api/subscribe-signal/${planId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Credentials': 'include' },
+                    body: JSON.stringify({ deposit_amount: depositAmount })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Subscription/Deposit failed.');
+                
+                showStatusMessage(result.message || 'Successfully deposited to signal plan!', false);
+                amountInput.value = ''; // Clear input
+                await fetchUserWallets(); // Refresh balances
+                await fetchAndDisplayMySignals(); // Refresh my signals list
+                
+            } catch (error) {
+                console.error('Signal subscription/deposit error:', error);
+                showStatusMessage(`Error: ${error.message}`, true);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Subscribe & Deposit';
+            }
+        }
+        
+        async function fetchAndDisplayMySignals() {
+            if (!mySignalsTableBody) return;
+            mySignalsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #A0A6AD;">Loading your active signals...</td></tr>';
+            if (!currentUser) { // Don't fetch if user not logged in
+                 mySignalsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #A0A6AD;">Please log in to see your signals.</td></tr>';
+                 return;
+            }
+            try {
+                const response = await fetch('/api/my-signals', { credentials: 'include' });
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const signals = await response.json();
+                mySignalsTableBody.innerHTML = '';
+                if (signals.length === 0) {
+                    mySignalsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #A0A6AD;">You are not subscribed to any active signals.</td></tr>';
+                    return;
+                }
+                signals.forEach(sig => {
+                    const row = mySignalsTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${sig.plan_name}</td>
+                        <td>${formatDate(sig.subscribed_at)}</td>
+                        <td>${formatNumber(sig.user_balance)}</td>
+                        <td>${sig.plan_currency}</td>
+                        <td>${sig.performance_metric || 'N/A'}</td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching user signals:', error);
+                mySignalsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: #ff6b6b;">Error loading signals: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Initialization
+        async function initPage() {
+            try {
+                await checkAuth(); 
+                await fetchUserWallets(); 
+                await fetchCoinPricesUSD(); 
+                await fetchAndDisplayActiveSignalPlans(); 
+                await fetchAndDisplayMySignals();
+            } catch(error) {
+                console.log("Page initialization failed, likely due to auth redirect.");
+                // If checkAuth throws and redirects, subsequent calls might not run or matter.
+                // If assetsLoadingMessage exists, update it
+                const mainLoadingMsg = document.getElementById('signal-plans-loading-message');
+                if(mainLoadingMsg) mainLoadingMsg.textContent = 'Failed to load page. Please ensure you are logged in.';
+                else { // Fallback if main loading message isn't there
+                    const container = document.querySelector('.content-grid');
+                    if(container) container.innerHTML = '<p style="color: red; text-align: center;">Page failed to load. Please try logging in again.</p>';
+                }
+            }
+        }
+
+        initPage();
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Plans</title>
+    <style>
+        /* Styles adapted from global_theme.css and trade_widget.html for consistency */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #04080B; 
+            color: #E0E6ED;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .content-grid {
+            background-color: #0A0E11;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+            max-width: 1000px; 
+            margin: auto; 
+        }
+        h2, h3 {
+            color: #E0E6ED;
+            border-bottom: 1px solid #2A2E31;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .user-balances-section, .available-plans-section, .my-subscriptions-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #1A1E21; 
+            border-radius: 5px;
+            border: 1px solid #2A2E31;
+        }
+        .user-balances-section p {
+            margin: 5px 0;
+            font-size: 1em;
+        }
+        .user-balances-section strong {
+            color: #08a88a;
+        }
+        .plans-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .plan-card {
+            background-color: #0A0E11;
+            border: 1px solid #2A2E31;
+            border-radius: 5px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .plan-card h4 {
+            color: #1e90ff; 
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .plan-card .plan-icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            object-fit: cover; 
+            background-color: #2A2E31; 
+        }
+        .plan-card p {
+            font-size: 0.9em;
+            color: #A0A6AD;
+            margin-bottom: 8px;
+            flex-grow: 1; 
+        }
+        .plan-card .plan-price {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #08a88a;
+            margin-bottom: 15px;
+        }
+        .plan-card .subscribe-btn {
+            padding: 10px 15px;
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            display: block;
+            width: 100%;
+        }
+        .plan-card .subscribe-btn:hover:not(:disabled) {
+            background-color: #187bcd;
+        }
+        .plan-card .subscribe-btn:disabled {
+            background-color: #2A2E31;
+            color: #555;
+            cursor: not-allowed;
+        }
+        .subscriptions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .subscriptions-table th, .subscriptions-table td {
+            border: 1px solid #2A2E31;
+            padding: 10px;
+            text-align: left;
+        }
+        .subscriptions-table th {
+            background-color: #1A1E21;
+        }
+        .status-active { color: #4caf50; }
+        .status-expired { color: #9E9E9E; }
+        .status-canceled { color: #f44336; }
+
+        #statusMessage {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            display: none; 
+        }
+        #statusMessage.success {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+        #statusMessage.error {
+            background-color: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-grid">
+        <h2>Subscription Plans</h2>
+
+        <div class="user-balances-section">
+            <h3>Your Balances</h3>
+            <p>Account Currency: <strong id="user-account-currency">Loading...</strong></p>
+            <div id="plan-currency-balances">
+                <!-- Balances for plan currencies will be shown here -->
+            </div>
+        </div>
+
+        <div class="available-plans-section">
+            <h3>Available Plans</h3>
+            <div id="plans-container" class="plans-container">
+                <p id="plans-loading-message" style="color: #A0A6AD;">Loading plans...</p>
+            </div>
+        </div>
+
+        <div class="my-subscriptions-section">
+            <h3>My Subscriptions</h3>
+            <div style="overflow-x: auto;">
+                <table id="my-subscriptions-table" class="subscriptions-table">
+                    <thead>
+                        <tr>
+                            <th>Plan Name</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Price Paid</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align:center; color: #A0A6AD;">Loading your subscriptions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id="statusMessage" style="display: none;"></div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let userWallets = []; // { shortName, balance, coinName }
+        let userAccountCurrency = 'USD';
+
+        const plansContainer = document.getElementById('plans-container');
+        const plansLoadingMessage = document.getElementById('plans-loading-message');
+        const mySubscriptionsTableBody = document.querySelector('#my-subscriptions-table tbody');
+        const userAccountCurrencyDisplay = document.getElementById('user-account-currency');
+        const planCurrencyBalancesDisplay = document.getElementById('plan-currency-balances');
+        const statusMessageDisplay = document.getElementById('statusMessage');
+
+        function formatNumber(num, decimals = 2) {
+            if (num === undefined || num === null || isNaN(num)) return Number(0).toFixed(decimals);
+            return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 8 });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            return new Date(dateString).toLocaleDateString();
+        }
+
+        function showStatusMessage(message, isError) {
+            statusMessageDisplay.textContent = message;
+            statusMessageDisplay.className = isError ? 'error' : 'success';
+            statusMessageDisplay.style.display = 'block';
+            setTimeout(() => {
+                statusMessageDisplay.style.display = 'none';
+            }, 5000);
+        }
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!res.ok) { 
+                    if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                    throw new Error('Not authenticated'); 
+                }
+                const data = await res.json();
+                currentUser = data.user;
+                userAccountCurrency = currentUser.accountCurrency || 'USD';
+                if(userAccountCurrencyDisplay) userAccountCurrencyDisplay.textContent = userAccountCurrency;
+            } catch (e) { 
+                currentUser = null; userAccountCurrency = 'USD';
+                if (typeof loadPage === 'function') loadPage('login.html'); else window.location.href = '/login.html';
+                throw e;
+            }
+        }
+
+        async function fetchUserWallets() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(`/api/user/${currentUser.id}/wallets`, { credentials: 'include' });
+                userWallets = await res.json();
+                displayRelevantBalances();
+            } catch (e) { console.error("Failed to fetch user wallets", e); userWallets = []; }
+        }
+        
+        function displayRelevantBalances(planCurrencies = new Set()) {
+            if (!planCurrencyBalancesDisplay) return;
+            planCurrencyBalancesDisplay.innerHTML = ''; // Clear previous balances
+
+            const currenciesToShow = new Set(planCurrencies);
+            currenciesToShow.add(userAccountCurrency.toUpperCase()); // Always show account currency
+            
+            currenciesToShow.forEach(currency => {
+                const wallet = userWallets.find(w => w.shortName.toUpperCase() === currency.toUpperCase());
+                const balance = wallet ? parseFloat(wallet.balance) : 0;
+                const p = document.createElement('p');
+                p.innerHTML = `${currency} Balance: <strong style="color: #08a88a;">${formatNumber(balance)}</strong>`;
+                planCurrencyBalancesDisplay.appendChild(p);
+            });
+        }
+
+        async function fetchAndDisplayActivePlans() {
+            if (!plansContainer || !plansLoadingMessage) return;
+            plansLoadingMessage.style.display = 'block';
+            plansContainer.innerHTML = ''; // Clear before loading
+            try {
+                const response = await fetch('/api/subscription-plans');
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const plans = await response.json();
+
+                if (plans.length === 0) {
+                    plansContainer.innerHTML = '<p style="color: #A0A6AD;">No subscription plans currently available.</p>';
+                } else {
+                    const planCurrencies = new Set();
+                    plans.forEach(plan => planCurrencies.add(plan.currency.toUpperCase()));
+                    displayRelevantBalances(planCurrencies); // Update balances based on plan currencies
+
+                    plans.forEach(plan => {
+                        const card = document.createElement('div');
+                        card.className = 'plan-card';
+                        card.innerHTML = `
+                            ${plan.icon_url ? `<img src="${plan.icon_url}" alt="${plan.name}" class="plan-icon">` : `<div class="plan-icon"></div>`}
+                            <h4>${plan.name}</h4>
+                            <p>${plan.description || 'No description available.'}</p>
+                            <p class="plan-price">${formatNumber(plan.price)} ${plan.currency} / ${plan.duration_days} days</p>
+                            <button class="subscribe-btn" data-plan-id="${plan.id}" data-plan-price="${plan.price}" data-plan-currency="${plan.currency.toUpperCase()}">Subscribe</button>
+                        `;
+                        plansContainer.appendChild(card);
+                    });
+                    document.querySelectorAll('.subscribe-btn').forEach(button => {
+                        button.addEventListener('click', handleSubscription);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching subscription plans:', error);
+                plansContainer.innerHTML = `<p style="color: #ff6b6b;">Error loading plans: ${error.message}</p>`;
+            } finally {
+                plansLoadingMessage.style.display = 'none';
+            }
+        }
+
+        async function handleSubscription(event) {
+            const planId = event.target.dataset.planId;
+            const planPrice = parseFloat(event.target.dataset.planPrice);
+            const planCurrency = event.target.dataset.planCurrency;
+
+            const paymentWallet = userWallets.find(w => w.shortName.toUpperCase() === planCurrency);
+            const balance = paymentWallet ? parseFloat(paymentWallet.balance) : 0;
+
+            if (balance < planPrice) {
+                showStatusMessage(`Insufficient ${planCurrency} balance. Required: ${planPrice}, Available: ${balance}. Please deposit or convert funds.`, true);
+                return;
+            }
+
+            if (!confirm(`Confirm subscription to this plan for ${planPrice} ${planCurrency}?`)) return;
+
+            event.target.disabled = true;
+            event.target.textContent = 'Subscribing...';
+
+            try {
+                const response = await fetch(`/api/subscribe/${planId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Credentials': 'include' }
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Subscription failed.');
+                
+                showStatusMessage(result.message || 'Subscribed successfully!', false);
+                await fetchUserWallets(); // Refresh balances
+                await fetchAndDisplayMySubscriptions(); // Refresh my subscriptions list
+                // Potentially refresh available plans if they change upon subscription (e.g., one-time plans)
+
+            } catch (error) {
+                console.error('Subscription error:', error);
+                showStatusMessage(`Error: ${error.message}`, true);
+            } finally {
+                event.target.disabled = false;
+                event.target.textContent = 'Subscribe';
+            }
+        }
+        
+        async function fetchAndDisplayMySubscriptions() {
+            if (!mySubscriptionsTableBody) return;
+            mySubscriptionsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #A0A6AD;">Loading your subscriptions...</td></tr>';
+            try {
+                const response = await fetch('/api/my-subscriptions', { credentials: 'include' });
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const subscriptions = await response.json();
+                mySubscriptionsTableBody.innerHTML = '';
+                if (subscriptions.length === 0) {
+                    mySubscriptionsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #A0A6AD;">You have no active or past subscriptions.</td></tr>';
+                    return;
+                }
+                subscriptions.forEach(sub => {
+                    const row = mySubscriptionsTableBody.insertRow();
+                    const statusClass = `status-${sub.status.toLowerCase()}`;
+                    row.innerHTML = `
+                        <td>${sub.plan_name}</td>
+                        <td>${formatDate(sub.start_date)}</td>
+                        <td>${formatDate(sub.end_date)}</td>
+                        <td>${formatNumber(sub.purchase_price)} ${sub.purchase_currency}</td>
+                        <td class="${statusClass}">${sub.status}</td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching user subscriptions:', error);
+                mySubscriptionsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: #ff6b6b;">Error loading subscriptions: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Initialization
+        async function initPage() {
+            try {
+                await checkAuth(); // Sets currentUser and userAccountCurrency
+                await fetchUserWallets(); // Sets userWallets and calls displayRelevantBalances initially
+                await fetchCoinPricesUSD(); // Sets coinPricesUSD
+                // fetchExchangeRates is not called globally anymore, getBackendExchangeRate is used on demand
+                await fetchAndDisplayActivePlans(); // Also calls displayRelevantBalances with plan currencies
+                await fetchAndDisplayMySubscriptions();
+            } catch(error) {
+                // Error already handled by checkAuth or individual fetch functions
+                console.log("Page initialization caught an error, likely auth related and handled.");
+            }
+        }
+
+        initPage();
+    });
+    </script>
+</body>
+</html>
